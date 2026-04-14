@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = 'http://localhost:8000';
+// Dynamically use the host running the frontend to connect to the backend
+const BACKEND_IP = window.location.hostname;
+const SOCKET_URL = `http://${BACKEND_IP}:8000`;
 
 export function useSocketEngine(role) {
   const socketRef = useRef(null);

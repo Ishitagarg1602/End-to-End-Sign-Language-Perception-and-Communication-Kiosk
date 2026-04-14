@@ -48,7 +48,8 @@ export default function EmployeeDashboard() {
         try {
           const form = new FormData();
           form.append('audio', blob, 'recording.webm');
-          const res = await fetch('http://localhost:8000/api/transcribe', { method: 'POST', body: form });
+          const backendIp = window.location.hostname;
+          const res = await fetch(`http://${backendIp}:8000/api/transcribe`, { method: 'POST', body: form });
           const data = await res.json();
           if (data.text) sendReply(data.text);
         } catch (err) {
