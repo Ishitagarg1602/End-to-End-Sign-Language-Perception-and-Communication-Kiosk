@@ -1,0 +1,368 @@
+{
+  "account": {
+    "intent": "account_inquiry",
+    "sentence": "I have a query about my bank account.",
+    "follow_up": "Could you please specify what you need help with regarding your account?",
+    "category": "account"
+  },
+  "account_blocked": {
+    "intent": "account_issue",
+    "sentence": "My account has been blocked and I need urgent help to unblock it.",
+    "follow_up": "I understand your account is blocked. Can you provide your account number so we can assist you?",
+    "category": "account"
+  },
+  "account_closing": {
+    "intent": "account_closure",
+    "sentence": "I would like to close my bank account.",
+    "follow_up": "We can help you close your account. Do you have your account number and ID proof with you?",
+    "category": "account"
+  },
+  "account_holder": {
+    "intent": "identity",
+    "sentence": "I am the account holder and I need assistance.",
+    "follow_up": "Thank you for confirming. How may I help you today?",
+    "category": "account"
+  },
+  "account_statement": {
+    "intent": "statement_request",
+    "sentence": "I need my account statement, please.",
+    "follow_up": "Sure! For which period do you need the statement? Last month, last 3 months, or a specific date range?",
+    "category": "account"
+  },
+  "address": {
+    "intent": "profile_update",
+    "sentence": "I want to update my residential address in the bank records.",
+    "follow_up": "To update your address, please provide your new address and an address proof document.",
+    "category": "profile"
+  },
+  "affidavit": {
+    "intent": "document_submission",
+    "sentence": "I need to submit an affidavit document to the bank.",
+    "follow_up": "Please bring the notarized affidavit. What is the purpose of this affidavit?",
+    "category": "documents"
+  },
+  "amount": {
+    "intent": "amount_inquiry",
+    "sentence": "I need to know about a specific transaction amount.",
+    "follow_up": "Could you specify which transaction or amount you're referring to?",
+    "category": "transaction"
+  },
+  "atm": {
+    "intent": "atm_service",
+    "sentence": "I need help with ATM-related services.",
+    "follow_up": "What ATM service do you need help with — card issue, PIN reset, or cash withdrawal problem?",
+    "category": "cards"
+  },
+  "balance": {
+    "intent": "balance_check",
+    "sentence": "I would like to check my current account balance.",
+    "follow_up": "I can check your balance. Could you please provide your account number?",
+    "category": "account"
+  },
+  "bank": {
+    "intent": "general_inquiry",
+    "sentence": "I have a general query about banking services.",
+    "follow_up": "Sure, I'm here to help. What would you like to know about our banking services?",
+    "category": "general"
+  },
+  "bank_branch_name": {
+    "intent": "branch_info",
+    "sentence": "I need to know the bank branch name or branch details.",
+    "follow_up": "Which branch are you looking for — your home branch or a different one?",
+    "category": "general"
+  },
+  "cancel": {
+    "intent": "cancellation",
+    "sentence": "I want to cancel my previous request.",
+    "follow_up": "Sure, which request would you like to cancel?",
+    "category": "general"
+  },
+  "cash": {
+    "intent": "cash_service",
+    "sentence": "I need cash-related services at the counter.",
+    "follow_up": "Do you want to withdraw cash or deposit cash?",
+    "category": "transaction"
+  },
+  "change": {
+    "intent": "modification",
+    "sentence": "I want to make a change to my account or details.",
+    "follow_up": "What change would you like to make — personal details, account type, or something else?",
+    "category": "profile"
+  },
+  "cheque": {
+    "intent": "cheque_service",
+    "sentence": "I need a new cheque book for my account.",
+    "follow_up": "I can request a cheque book for you. How many leaves would you like — 25, 50, or 100?",
+    "category": "documents"
+  },
+  "cif_number": {
+    "intent": "account_info",
+    "sentence": "I need to know my CIF (Customer Information File) number.",
+    "follow_up": "Your CIF number is on your passbook. Would you like me to look it up for you?",
+    "category": "account"
+  },
+  "complain": {
+    "intent": "complaint",
+    "sentence": "I want to file a complaint about a banking issue.",
+    "follow_up": "I'm sorry to hear that. Could you describe the issue you're facing?",
+    "category": "support"
+  },
+  "credit_card": {
+    "intent": "card_service",
+    "sentence": "I have a query about my credit card.",
+    "follow_up": "What help do you need with your credit card — billing, limit, reward points, or something else?",
+    "category": "cards"
+  },
+  "current_account": {
+    "intent": "account_type",
+    "sentence": "I want to know about current account options and features.",
+    "follow_up": "We offer several current account plans. Are you looking to open a new current account or inquire about an existing one?",
+    "category": "account"
+  },
+  "debit_card": {
+    "intent": "card_service",
+    "sentence": "I have a query about my debit card.",
+    "follow_up": "What do you need help with — new card, replacement, PIN change, or transaction issue?",
+    "category": "cards"
+  },
+  "deposit": {
+    "intent": "deposit",
+    "sentence": "I want to deposit money into my account.",
+    "follow_up": "How much would you like to deposit, and would you prefer cash or cheque deposit?",
+    "category": "transaction"
+  },
+  "dividend": {
+    "intent": "investment_inquiry",
+    "sentence": "I want to inquire about my dividend payments.",
+    "follow_up": "I can check your dividend status. Which investment or scheme are you asking about?",
+    "category": "investment"
+  },
+  "expenditure": {
+    "intent": "spending_inquiry",
+    "sentence": "I want to review my recent expenditure and spending patterns.",
+    "follow_up": "I can pull up your transaction history. For which period would you like to see your spending?",
+    "category": "account"
+  },
+  "finish": {
+    "intent": "session_end",
+    "sentence": "I am done with my banking work. Thank you for your help.",
+    "follow_up": "Thank you for visiting! Is there anything else I can help you with before you go?",
+    "category": "general"
+  },
+  "form": {
+    "intent": "form_request",
+    "sentence": "I need a banking form to fill out.",
+    "follow_up": "Which form do you need — account opening, loan application, KYC update, or something else?",
+    "category": "documents"
+  },
+  "fraud": {
+    "intent": "fraud_report",
+    "sentence": "I want to report a fraud or unauthorized transaction on my account!",
+    "follow_up": "This is urgent. Can you tell me when you noticed the fraudulent activity and the approximate amount?",
+    "category": "support"
+  },
+  "good_morning": {
+    "intent": "greeting",
+    "sentence": "Good morning!",
+    "follow_up": "Good morning! Welcome to the bank. How can I assist you today?",
+    "category": "greeting"
+  },
+  "hello": {
+    "intent": "greeting",
+    "sentence": "Hello!",
+    "follow_up": "Hello! Welcome. How may I help you today?",
+    "category": "greeting"
+  },
+  "help": {
+    "intent": "assistance",
+    "sentence": "I need help with a banking service.",
+    "follow_up": "Of course! What do you need help with — account, card, loan, or something else?",
+    "category": "general"
+  },
+  "identity_card": {
+    "intent": "document_verification",
+    "sentence": "I want to show my identity card for verification.",
+    "follow_up": "Thank you. Please show your Aadhaar card, PAN card, or any valid government ID.",
+    "category": "documents"
+  },
+  "income": {
+    "intent": "income_inquiry",
+    "sentence": "I want to discuss my income details or provide income proof.",
+    "follow_up": "Are you submitting income proof for a loan application, or do you need income certificate details?",
+    "category": "documents"
+  },
+  "interest_rate": {
+    "intent": "rate_inquiry",
+    "sentence": "I want to know the current interest rates.",
+    "follow_up": "Are you asking about savings account interest rate, fixed deposit rate, or loan interest rate?",
+    "category": "general"
+  },
+  "joint_account": {
+    "intent": "account_opening",
+    "sentence": "I want to open a joint bank account.",
+    "follow_up": "Great! Both account holders will need to be present with their ID proofs. Is the other person here?",
+    "category": "account"
+  },
+  "kyc": {
+    "intent": "kyc_verification",
+    "sentence": "I want to complete my KYC verification.",
+    "follow_up": "For KYC, please bring your Aadhaar, PAN card, and a recent passport-size photo. Do you have these?",
+    "category": "documents"
+  },
+  "loan": {
+    "intent": "loan_inquiry",
+    "sentence": "I want to apply for a loan or enquire about loan options.",
+    "follow_up": "What type of loan are you interested in — personal loan, home loan, education loan, or vehicle loan?",
+    "category": "loan"
+  },
+  "lose": {
+    "intent": "loss_report",
+    "sentence": "I have lost my card/passbook and need help.",
+    "follow_up": "I'm sorry to hear that. What did you lose — debit card, credit card, passbook, or cheque book?",
+    "category": "support"
+  },
+  "mobile_banking": {
+    "intent": "digital_banking",
+    "sentence": "I want to set up or get help with mobile banking.",
+    "follow_up": "Do you want to register for mobile banking, reset your password, or report an issue?",
+    "category": "digital"
+  },
+  "money": {
+    "intent": "money_service",
+    "sentence": "I have a query about a money transaction.",
+    "follow_up": "Are you looking to send money, receive money, or check a transaction?",
+    "category": "transaction"
+  },
+  "mortgages": {
+    "intent": "mortgage_inquiry",
+    "sentence": "I want to know about mortgage options and rates.",
+    "follow_up": "Are you looking for a new mortgage, or do you have questions about your existing mortgage?",
+    "category": "loan"
+  },
+  "name": {
+    "intent": "profile_update",
+    "sentence": "I want to update my name in the bank records.",
+    "follow_up": "To update your name, please provide your marriage certificate, gazette notification, or court order as proof.",
+    "category": "profile"
+  },
+  "no": {
+    "intent": "negation",
+    "sentence": "No, that is not correct.",
+    "follow_up": "I understand. Could you please clarify what you need?",
+    "category": "general"
+  },
+  "nominee": {
+    "intent": "nominee_update",
+    "sentence": "I want to add or change the nominee on my account.",
+    "follow_up": "I can help with that. Do you want to add a new nominee or change the existing one?",
+    "category": "account"
+  },
+  "number": {
+    "intent": "contact_update",
+    "sentence": "I want to update my phone number in bank records.",
+    "follow_up": "To update your phone number, please provide your new number and your ID proof for verification.",
+    "category": "profile"
+  },
+  "open": {
+    "intent": "account_opening",
+    "sentence": "I want to open a new bank account.",
+    "follow_up": "Great! What type of account would you like — savings, current, or fixed deposit?",
+    "category": "account"
+  },
+  "opening_balance": {
+    "intent": "balance_inquiry",
+    "sentence": "I want to know the opening balance requirement.",
+    "follow_up": "The minimum opening balance depends on the account type. Which type of account are you interested in?",
+    "category": "account"
+  },
+  "passbook": {
+    "intent": "passbook_service",
+    "sentence": "I want to update or get a new passbook.",
+    "follow_up": "Do you want to update your existing passbook or request a new one?",
+    "category": "documents"
+  },
+  "payment": {
+    "intent": "payment",
+    "sentence": "I want to make a payment or know about payment options.",
+    "follow_up": "What kind of payment — bill payment, loan EMI, or transfer to another account?",
+    "category": "transaction"
+  },
+  "paytm": {
+    "intent": "digital_payment",
+    "sentence": "I need help linking my bank account with Paytm.",
+    "follow_up": "Do you want to link your account, or are you facing an issue with an existing Paytm transaction?",
+    "category": "digital"
+  },
+  "phone": {
+    "intent": "contact_inquiry",
+    "sentence": "I have a query about my phone number linked to the account.",
+    "follow_up": "Do you want to update your phone number or check which number is linked?",
+    "category": "profile"
+  },
+  "receive": {
+    "intent": "fund_receipt",
+    "sentence": "I am expecting to receive money in my account.",
+    "follow_up": "I can check incoming transfers. Do you have the sender's details or transaction reference number?",
+    "category": "transaction"
+  },
+  "revenue": {
+    "intent": "financial_inquiry",
+    "sentence": "I want to know about revenue or tax-related banking details.",
+    "follow_up": "Are you looking for a tax-saving deposit, TDS details, or Form 26AS?",
+    "category": "investment"
+  },
+  "savings_account": {
+    "intent": "account_type",
+    "sentence": "I want to know about savings account features and benefits.",
+    "follow_up": "We have several savings account options. Are you looking to open a new one or inquire about your existing account?",
+    "category": "account"
+  },
+  "security_deposit": {
+    "intent": "deposit_inquiry",
+    "sentence": "I want to know about the security deposit requirements.",
+    "follow_up": "The security deposit amount depends on the service. Which service are you asking about — locker, account, or loan?",
+    "category": "general"
+  },
+  "send": {
+    "intent": "fund_transfer",
+    "sentence": "I want to send money to someone's account.",
+    "follow_up": "I can help with the transfer. Do you have the recipient's account number and IFSC code?",
+    "category": "transaction"
+  },
+  "signature": {
+    "intent": "signature_update",
+    "sentence": "I need to update my signature in the bank records.",
+    "follow_up": "To update your signature, please bring your ID proof. We'll need you to sign the new specimen signature card.",
+    "category": "profile"
+  },
+  "thank_you": {
+    "intent": "gratitude",
+    "sentence": "Thank you very much for your help.",
+    "follow_up": "You're welcome! Have a great day. Visit us again if you need any help.",
+    "category": "greeting"
+  },
+  "transfer": {
+    "intent": "fund_transfer",
+    "sentence": "I want to transfer money to another account.",
+    "follow_up": "Would you like to do NEFT, RTGS, or IMPS transfer? Also, please provide the beneficiary details.",
+    "category": "transaction"
+  },
+  "verification": {
+    "intent": "verification",
+    "sentence": "I want to complete a verification process.",
+    "follow_up": "What type of verification do you need — KYC, address, income, or identity verification?",
+    "category": "documents"
+  },
+  "wait": {
+    "intent": "pause",
+    "sentence": "Please wait a moment.",
+    "follow_up": "Sure, take your time. I'm here when you're ready.",
+    "category": "general"
+  },
+  "withdraw": {
+    "intent": "withdrawal",
+    "sentence": "I want to withdraw money from my account.",
+    "follow_up": "How much would you like to withdraw? Do you have your withdrawal slip or debit card?",
+    "category": "transaction"
+  }
+}

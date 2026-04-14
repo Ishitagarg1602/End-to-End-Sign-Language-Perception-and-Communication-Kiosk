@@ -1,0 +1,12 @@
+mediapipe>=0.10.0
+opencv-python>=4.9.0
+numpy>=1.26.0
+scipy>=1.13.0
+scikit-learn>=1.5.0
+fastapi>=0.111.0
+uvicorn>=0.29.0
+python-socketio>=5.11.0
+python-engineio>=4.9.0
+motor>=3.4.0
+pymongo>=4.7.0
+pydantic>=2.7.0

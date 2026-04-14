@@ -1,0 +1,79 @@
+# Dataset — never commit raw videos
+mvp/dataset/
+new_samples/
+
+# Extracted and augmented landmarks — regenerate with scripts
+mvp/landmarks/
+mvp/augmented/
+mvp/splits/*.npy
+ml/data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+dist/
+build/
+
+# Environments
+.env
+.venv
+env/
+venv/
+isl_env/
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# Model weights — too large for git, download separately
+*.pt
+*.pth
+models/
+mvp/model_cnn_bilstm.pt
+
+# Database
+sessions.db
+*.db
+
+# Temp files
+temp_recording.*
+feedback/
+
+# MongoDB local data
+data/db/
+*.lock
+mongod.pid
+
+# Vosk model — too large, document download link in README
+backend/speech/models/
+vosk-model*/
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+.gemini/
+
+# Logs
+*.log
+logs/
+
+# Test and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Plots — generated, not source
+plots/*.png
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
