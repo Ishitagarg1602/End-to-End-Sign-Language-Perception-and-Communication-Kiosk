@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback, Suspense } from 'react';
 import { useSocketEngine } from '../hooks/useSocketEngine';
-import { Camera, HandMetal, Send, RotateCcw, Square, MessageSquare, AlertTriangle, Loader2, MessageCircle, Sparkles, Activity } from 'lucide-react';
+import { Camera, HandMetal, Send, RotateCcw, Square, MessageSquare, AlertTriangle, Loader2, MessageCircle, Sparkles, Activity, ArrowRight } from 'lucide-react';
 import AvatarScene, { getGestureForText } from '../components/AvatarScene';
 
 export default function KioskDashboard() {
@@ -71,6 +71,13 @@ export default function KioskDashboard() {
   // Typewriter effect for employee message
   useEffect(() => {
     if (employeeMessage) {
+      // Play notification tune
+      try {
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+        audio.volume = 0.4;
+        audio.play();
+      } catch (e) { console.error('Audio play failed', e); }
+
       setDisplayedText('');
       setTypewriterDone(false);
       let i = 0;
@@ -86,6 +93,27 @@ export default function KioskDashboard() {
       return () => clearInterval(interval);
     }
   }, [employeeMessage]);
+
+  const getInstructionCard = (text) => {
+    if (!text) return null;
+    const lower = text.toLowerCase();
+    if (lower.includes('room') || lower.includes('floor') || lower.includes('counter') || lower.includes('go to')) {
+      return {
+        title: 'Directional Instruction',
+        desc: 'Please follow the directions to the specified location.',
+        icon: <ArrowRight size={24} className="animate-pulse" />
+      };
+    }
+    if (lower.includes('wait') || lower.includes('moment')) {
+      return {
+        title: 'Please Wait',
+        desc: 'A representative is processing your request.',
+        icon: <Loader2 size={24} className="spin-icon" />
+      };
+    }
+    return null;
+  };
+  const instruction = getInstructionCard(employeeMessage);
 
   const handleConfirm = () => {
     if (!latestSign) return;
@@ -135,14 +163,27 @@ export default function KioskDashboard() {
             borderRadius: 32, overflow: 'hidden', boxShadow: '0 0 50px var(--primary-glow)',
             border: '1px solid var(--primary)'
           }}>
-            <div style={{ height: 320, position: 'relative' }}>
-              <Suspense fallback={
-                <div style={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
-                  <Loader2 size={32} className="spin-icon" style={{ color: 'var(--primary)' }} />
+            <div style={{ display: 'flex', height: 320, position: 'relative' }}>
+              <div style={{ flex: 1 }}>
+                <Suspense fallback={
+                  <div style={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
+                    <Loader2 size={32} className="spin-icon" style={{ color: 'var(--primary)' }} />
+                  </div>
+                }>
+                  <AvatarScene gesture={getGestureForText(employeeMessage)} isActive={true} />
+                </Suspense>
+              </div>
+
+              {instruction && (
+                <div className="animate-enter" style={{
+                  width: 240, background: 'rgba(99, 102, 241, 0.1)', borderLeft: '1px solid var(--primary)',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center'
+                }}>
+                  <div style={{ color: 'var(--primary)', marginBottom: 16 }}>{instruction.icon}</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', marginBottom: 8 }}>{instruction.title}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{instruction.desc}</div>
                 </div>
-              }>
-                <AvatarScene gesture={getGestureForText(employeeMessage)} isActive={true} />
-              </Suspense>
+              )}
               <div style={{
                 position: 'absolute', top: 20, left: '50%', transform: 'translateX(-50%)',
                 display: 'flex', alignItems: 'center', gap: 10,
@@ -179,7 +220,9 @@ export default function KioskDashboard() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: isConnected ? 'var(--success)' : 'var(--danger)', boxShadow: isConnected ? '0 0 10px var(--success)' : 'none' }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: isConnected ? 'var(--success)' : 'var(--danger)' }}>{isConnected ? 'LINK ACTIVE' : 'OFFLINE'}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: isConnected ? 'var(--success)' : 'var(--danger)' }}>
+              {isConnected ? `LINK ACTIVE ${sessionId ? `[ID: ${sessionId.slice(0,8)}]` : ''}` : 'OFFLINE'}
+            </span>
           </div>
         </div>
 

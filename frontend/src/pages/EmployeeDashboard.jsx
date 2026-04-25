@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSocketEngine } from '../hooks/useSocketEngine';
-import { Briefcase, Mic, Square, Send, Activity, LogOut, Check, X, MessageSquare, Terminal, Zap, ShieldCheck } from 'lucide-react';
+import { Briefcase, Mic, Square, Send, Activity, LogOut, Check, X, MessageSquare, Terminal, Zap, ShieldCheck, RotateCcw, AlertTriangle } from 'lucide-react';
 
 export default function EmployeeDashboard() {
   const {
@@ -111,7 +111,9 @@ export default function EmployeeDashboard() {
           <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 24, fontWeight: 700, letterSpacing: -0.5, textTransform: 'uppercase' }}>Command Interface</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 20px', borderRadius: 30, background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)' }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)', boxShadow: '0 0 10px var(--success)' }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--success)', letterSpacing: 1, textTransform: 'uppercase' }}>Satellite Link Secure</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--success)', letterSpacing: 1, textTransform: 'uppercase' }}>
+              Satellite Link Secure {sessionId ? `[ID: ${sessionId.slice(0,8)}]` : ''}
+            </span>
           </div>
         </header>
 
@@ -130,11 +132,14 @@ export default function EmployeeDashboard() {
                 <div className="animate-enter" style={{
                   position: 'absolute', top: 32, left: '50%', transform: 'translateX(-50%)',
                   background: 'rgba(59,130,246,0.1)', border: '1px solid var(--primary-glow)',
-                  padding: '24px 40px', borderRadius: 20, textAlign: 'center', zIndex: 50,
+                  padding: '24px 40px', borderRadius: 20, textAlign: 'center', zIndex: 100,
                   boxShadow: '0 10px 40px rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)'
                 }}>
                   <div style={{ color: 'var(--primary)', fontSize: 14, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 20 }}>
                     Inbound Handshake Request
+                    <div style={{ fontSize: 18, color: 'white', marginTop: 10, fontFamily: 'var(--font-mono)' }}>
+                      ID: {sessionRequest?.session_id?.slice(0, 8).toUpperCase() || 'UNKNOWN'}
+                    </div>
                   </div>
                   <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
                     <button className="btn btn-primary" onClick={acceptSession} style={{ padding: '12px 28px', fontSize: 12 }}>
@@ -147,6 +152,17 @@ export default function EmployeeDashboard() {
                 </div>
               )}
 
+              {/* Multi-Person Alert */}
+              {multiPersonAlert && (
+                <div className="animate-enter" style={{
+                  position: 'absolute', top: 20, left: '50%', transform: 'translateX(-50%)',
+                  background: 'var(--danger)', color: 'white', padding: '10px 24px', borderRadius: 12,
+                  fontSize: 12, fontWeight: 700, zIndex: 200, display: 'flex', alignItems: 'center', gap: 10
+                }}>
+                  <AlertTriangle size={16} /> MULTIPLE USERS DETECTED AT KIOSK
+                </div>
+              )}
+
               {/* Message Display */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
                 {lastKioskMsg ? (
@@ -154,13 +170,21 @@ export default function EmployeeDashboard() {
                     <div style={{ fontSize: 56, fontWeight: 800, lineHeight: 1.1, letterSpacing: -2, background: 'linear-gradient(135deg, #fff, var(--primary))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: 32 }}>
                       "{lastKioskMsg.text}"
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 32 }}>
                       {lastKioskMsg.word && (
                         <span className="badge badge-purple">{lastKioskMsg.word}</span>
                       )}
                       {lastKioskMsg.conf != null && (
                         <span className="badge badge-green">{Math.round(lastKioskMsg.conf * 100)}% Match</span>
                       )}
+                    </div>
+                    <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                      <button className="btn btn-primary" onClick={() => sendReply('Yes, that is correct.')} style={{ background: 'var(--success)', border: 'none', padding: '10px 20px', fontSize: 12 }}>
+                        <Check size={14} /> CORRECT
+                      </button>
+                      <button className="btn btn-secondary" onClick={() => sendReply('Could you please sign that again?')} style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid var(--danger)', padding: '10px 20px', fontSize: 12 }}>
+                        <RotateCcw size={14} /> RETRY
+                      </button>
                     </div>
                   </div>
                 ) : (

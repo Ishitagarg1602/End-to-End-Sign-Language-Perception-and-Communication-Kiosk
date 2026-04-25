@@ -39,15 +39,20 @@ export function useSocketEngine(role) {
     const socket = socketRef.current;
 
     socket.on('connect', () => {
+      console.log(`[Socket] Connected as ${role}`);
       setIsConnected(true);
       if (role === 'employee') socket.emit('join_employee');
       else if (role === 'kiosk') socket.emit('join_kiosk');
     });
 
-    socket.on('disconnect', () => setIsConnected(false));
+    socket.on('disconnect', () => {
+      console.log('[Socket] Disconnected');
+      setIsConnected(false);
+    });
 
     // ── KIOSK events ──
     socket.on('user_detected', (data) => {
+      console.log('[Socket] User detected:', data);
       if (role === 'kiosk') {
         setSessionId(data.session_id);
         setWaitingApproval(true);
@@ -105,6 +110,7 @@ export function useSocketEngine(role) {
 
     // ── EMPLOYEE events ──
     socket.on('session_request', (data) => {
+      console.log('[Socket] Session request received:', data);
       if (role === 'employee') {
         setSessionId(data.session_id);
         setSessionRequest(data);
@@ -139,6 +145,7 @@ export function useSocketEngine(role) {
     });
 
     socket.on('session_status', (data) => {
+      console.log('[Socket] Session status update:', data);
       if (data.status === 'accepted') {
         setSessionActive(true);
         setSessionRequest(null);
@@ -159,8 +166,10 @@ export function useSocketEngine(role) {
 
   // ── Actions ──
   const acceptSession = useCallback(() => {
+    console.log('[Action] Accepting session:', sessionId);
     if (socketRef.current && sessionId) {
       socketRef.current.emit('session_accepted', { session_id: sessionId });
+      console.log('[Action] session_accepted EMITTED');
       setSessionRequest(null);
       setSessionActive(true);
       setMessages(prev => [...prev, {

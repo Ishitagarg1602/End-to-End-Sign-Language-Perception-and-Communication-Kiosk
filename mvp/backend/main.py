@@ -583,6 +583,11 @@ async def join_kiosk(sid, data=None):
     state.user_in_zone = False
     state.last_zone_time = 0.0
     await sio.emit('status', {'message': 'Connected to kiosk', 'camera': state.camera_running}, room=sid)
+    
+    if state.current_session_id:
+        await sio.emit('user_detected', {'session_id': state.current_session_id}, room=sid)
+        if state.session_accepted_by_employee:
+            await sio.emit('session_status', {'status': 'accepted', 'session_id': state.current_session_id}, room=sid)
 
 
 @sio.event
@@ -591,6 +596,14 @@ async def join_employee(sid, data=None):
     state.employee_sids.add(sid)
     logger.info(f"Employee joined: {sid}")
     await sio.emit('status', {'message': 'Connected as employee'}, room=sid)
+
+    if state.current_session_id and not state.session_accepted_by_employee:
+        await sio.emit('session_request', {
+            'session_id': state.current_session_id,
+            'timestamp': datetime.now().isoformat()
+        }, room=sid)
+    elif state.current_session_id and state.session_accepted_by_employee:
+        await sio.emit('session_status', {'status': 'accepted', 'session_id': state.current_session_id}, room=sid)
 
 
 @sio.event
