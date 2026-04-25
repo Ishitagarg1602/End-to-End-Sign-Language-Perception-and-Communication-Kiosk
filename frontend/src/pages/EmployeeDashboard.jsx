@@ -6,7 +6,8 @@ import { Briefcase, Mic, Square, Send, Activity, LogOut, Check, X, MessageSquare
 export default function EmployeeDashboard() {
   const {
     isConnected, sessionId, sessionRequest, sessionActive,
-    messages, acceptSession, declineSession, sendReply
+    messages, acceptSession, declineSession, sendReply,
+    multiPersonAlert
   } = useSocketEngine('employee');
 
   const navigate = useNavigate();

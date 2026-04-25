@@ -139,7 +139,7 @@ def create_face_landmarker() -> vision.FaceLandmarker:
 def create_pose_landmarker() -> vision.PoseLandmarker:
     if not POSE_LANDMARKER_PATH.exists():
         logger.warning(f"Pose landmarker model not found at {POSE_LANDMARKER_PATH}. Attempting download...")
-        download_model('https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker/float16/latest/pose_landmarker.task', POSE_LANDMARKER_PATH)
+        download_model('https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task', POSE_LANDMARKER_PATH)
 
     def try_create(delegate_type):
         base_options = mp_tasks.BaseOptions(
@@ -1341,13 +1341,22 @@ async def employee_reply(sid, data):
 
 @sio.event
 async def session_accepted(sid, data=None):
-    logger.info(f"Session accepted by employee: {sid}")
-    state.session_accepted_by_employee = True
-    state.detection_state = 'detecting'
-    state.frame_buffer = []
-    await sio.emit('session_status', {'status': 'accepted'}, room='kiosk')
-    await sio.emit('session_status', {'status': 'accepted'}, room='employee')
-    logger.info("Detection ENABLED — employee accepted the session.")
+    # Use session_id from data if provided, else from global state
+    target_id = data.get('session_id') if data and isinstance(data, dict) else state.current_session_id
+    
+    logger.info(f"Session accepted by employee {sid} for session {target_id}")
+    
+    if target_id == state.current_session_id:
+        state.session_accepted_by_employee = True
+        state.detection_state = 'detecting'
+        state.frame_buffer = []
+        
+    # Broadcast to all to ensure delivery
+    await sio.emit('session_status', {
+        'status': 'accepted', 
+        'session_id': target_id
+    })
+    logger.info(f"Detection ENABLED for {target_id}")
 
 
 @sio.event
