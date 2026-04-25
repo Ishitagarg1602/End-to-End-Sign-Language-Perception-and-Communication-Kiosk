@@ -3,455 +3,589 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign Language Kiosk</title>
-    <meta name="description" content="Sign Language Kiosk - Indian Sign Language Recognition for Bank">
+    <title>ISL Kiosk | Premium Recognition</title>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.5);
+            --accent: #8b5cf6;
+            --bg: #030712;
+            --card-bg: rgba(17, 24, 39, 0.7);
+            --border: rgba(255, 255, 255, 0.08);
+            --text: #f1f5f9;
+            --text-dim: #94a3b8;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
-            font-family: 'Inter', system-ui, sans-serif;
-            background: #0f172a; color: #e2e8f0;
-            height: 100vh; overflow: hidden;
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background: 
+                radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 100% 100%, rgba(139, 92, 246, 0.1) 0%, transparent 40%);
         }
 
-        .header {
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            padding: 6px 16px;
-            display: flex; align-items: center; justify-content: space-between;
-            border-bottom: 1px solid #334155; height: 42px;
-        }
-        .header-left { display: flex; align-items: center; gap: 10px; }
-        .header-logo {
-            width: 28px; height: 28px;
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
-            border-radius: 7px; display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 2px 8px rgba(99,102,241,0.3);
-        }
-        .header-logo svg { width: 15px; height: 15px; fill: white; }
-        .header-title { font-size: 14px; font-weight: 800; color: #f1f5f9; letter-spacing: -0.3px; }
-        .header-subtitle { font-size: 10px; color: #818cf8; font-weight: 600; letter-spacing: 0.3px; }
-        .header-right { display: flex; align-items: center; gap: 8px; }
-        .conn-badge {
-            display: flex; align-items: center; gap: 4px;
-            padding: 3px 8px; border-radius: 10px;
-            font-size: 10px; font-weight: 600;
-            background: rgba(239,68,68,0.15); color: #f87171;
-        }
-        .conn-badge.ok { background: rgba(34,197,94,0.15); color: #4ade80; }
-        .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-        .btn-end-session {
-            padding: 4px 12px; border-radius: 6px;
-            border: 1px solid rgba(239,68,68,0.3); background: rgba(239,68,68,0.08);
-            color: #f87171; font-family: 'Inter', sans-serif;
-            font-size: 10px; font-weight: 600; cursor: pointer;
-            display: none; transition: all 0.2s;
-        }
-        .btn-end-session:hover { background: rgba(239,68,68,0.15); }
-        .btn-end-session.visible { display: block; }
+        /* Animations */
+        @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.8; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes glow { 0% { box-shadow: 0 0 5px var(--primary-glow); } 50% { box-shadow: 0 0 20px var(--primary-glow); } 100% { box-shadow: 0 0 5px var(--primary-glow); } }
 
-        .alert-popup {
-            position: fixed; top: 46px; left: 50%;
-            transform: translateX(-50%) translateY(-80px);
-            background: linear-gradient(135deg, #451a1a, #3b0e0e);
-            color: #fca5a5;
-            padding: 10px 24px; border-radius: 10px;
-            font-size: 12px; font-weight: 600;
-            z-index: 1000; border: 1px solid #7f1d1d;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-            transition: transform 0.3s ease; pointer-events: none;
-        }
-        .alert-popup.show { transform: translateX(-50%) translateY(0); }
-
-        .session-overlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(8px); display: none;
-            align-items: center; justify-content: center; z-index: 999;
-        }
-        .session-overlay.show { display: flex; }
-        .session-card {
-            background: linear-gradient(135deg, #1e293b, #0f172a);
-            border-radius: 16px; padding: 28px;
-            text-align: center; max-width: 380px;
-            border: 1px solid #334155;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-        }
-        .session-card h2 { font-size: 18px; margin-bottom: 8px; color: #f1f5f9; }
-        .session-card p { font-size: 12px; color: #94a3b8; margin-bottom: 14px; }
-        .confirmed-words { margin-bottom: 14px; display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
-        .confirmed-words span { padding: 4px 10px; background: rgba(99,102,241,0.15); color: #a5b4fc; border-radius: 6px; font-size: 11px; font-weight: 600; }
-        .session-card button {
-            padding: 10px 24px; border: none; border-radius: 8px;
-            font-family: 'Inter'; font-size: 13px; font-weight: 700; cursor: pointer;
-            background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff;
-            box-shadow: 0 4px 12px rgba(99,102,241,0.3); transition: transform 0.15s;
-        }
-        .session-card button:hover { transform: scale(1.03); }
-        .btn-close-system {
-            background: linear-gradient(135deg, #dc2626, #991b1b) !important;
-            box-shadow: 0 4px 12px rgba(220,38,38,0.3) !important;
+        /* Layout */
+        .app-container {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 24px;
+            padding: 24px;
+            height: calc(100vh - 64px);
         }
 
-        .main {
-            display: grid; grid-template-columns: 1fr 1fr;
-            gap: 8px; padding: 8px;
-            height: calc(100vh - 42px);
+        header {
+            height: 64px;
+            padding: 0 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(3, 7, 18, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            z-index: 100;
         }
 
-        .card {
-            background: #1e293b; border-radius: 10px;
-            border: 1px solid #334155; display: flex;
-            flex-direction: column; overflow: hidden; min-height: 0;
-        }
-        .card-hdr {
-            padding: 7px 12px; border-bottom: 1px solid #334155;
-            font-size: 10px; font-weight: 700; color: #94a3b8;
-            text-transform: uppercase; letter-spacing: 0.6px;
-            display: flex; align-items: center; gap: 6px; flex-shrink: 0;
-        }
-        .card-hdr svg { width: 12px; height: 12px; fill: #6366f1; }
-
-        .cam-wrap {
-            flex: 1; background: #0f172a; margin: 6px;
-            border-radius: 8px; overflow: hidden; position: relative; min-height: 0;
-        }
-        .cam-wrap img { width: 100%; height: 100%; object-fit: cover; }
-        .cam-status {
-            position: absolute; bottom: 6px; left: 6px; right: 6px;
-            padding: 6px 12px; border-radius: 6px;
-            font-size: 11px; font-weight: 600; text-align: center;
-            backdrop-filter: blur(4px);
-        }
-        .cam-status.waiting { background: rgba(0,0,0,0.6); color: #64748b; }
-        .cam-status.scanning { background: rgba(99,102,241,0.85); color: #fff; animation: pulse 1.5s infinite; }
-        .cam-status.paused { background: rgba(245,158,11,0.85); color: #fff; }
-        .cam-status.processing { background: rgba(139,92,246,0.85); color: #fff; animation: pulse 1s infinite; }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
-
-        .btn-stop {
-            display: none; width: calc(100% - 12px); margin: 0 6px 6px;
-            padding: 8px; border: none; border-radius: 8px;
-            background: linear-gradient(135deg, #dc2626, #991b1b);
-            color: #fff; font-family: 'Inter'; font-size: 13px; font-weight: 700;
-            cursor: pointer; flex-shrink: 0; transition: transform 0.15s;
-            box-shadow: 0 4px 12px rgba(220,38,38,0.3);
-        }
-        .btn-stop:hover { transform: scale(1.01); }
-        .btn-stop.visible { display: block; }
-
-        .results-body {
-            flex: 1; padding: 8px 10px; overflow-y: auto;
-            display: flex; flex-direction: column; gap: 6px; min-height: 0;
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
-        .waiting-state {
-            flex: 1; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; gap: 8px;
-        }
-        .waiting-state svg { width: 32px; height: 32px; fill: #334155; }
-        .waiting-state .text { font-size: 12px; color: #64748b; text-align: center; line-height: 1.6; }
-        .waiting-state .text b { color: #a5b4fc; }
-
-        .word-box {
-            text-align: center; font-size: 28px; font-weight: 800;
-            text-transform: uppercase; letter-spacing: 2px; padding: 4px 0;
-            background: linear-gradient(135deg, #a5b4fc, #6366f1);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        .logo {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px var(--primary-glow);
         }
 
-        .intent-badge {
-            display: none; padding: 4px 10px; border-radius: 6px;
-            font-size: 11px; font-weight: 700; text-transform: uppercase;
-            background: rgba(99,102,241,0.15); color: #a5b4fc;
-            letter-spacing: 0.5px; text-align: center;
-            border: 1px solid rgba(99,102,241,0.25);
+        .logo svg { width: 20px; height: 20px; fill: white; }
+
+        .brand-info h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+        .brand-info p { font-size: 11px; color: var(--primary); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+
+        .conn-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px solid var(--border);
         }
-        .category-badge {
-            display: none; padding: 3px 8px; border-radius: 4px;
-            font-size: 10px; font-weight: 600; text-transform: uppercase;
-            background: rgba(139,92,246,0.12); color: #a78bfa;
+
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--danger); }
+        .status-dot.online { background: var(--success); box-shadow: 0 0 8px var(--success); }
+
+        /* Left Panel - Video Feed */
+        .feed-panel {
+            position: relative;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .video-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .video-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+
+        .overlay-status {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            padding: 8px 16px;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        .rec-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--danger);
+            border-radius: 50%;
+            display: none;
+        }
+
+        .scanning .rec-dot {
+            display: block;
+            animation: pulse 1s infinite;
+        }
+
+        .btn-action-main {
+            position: absolute;
+            bottom: 32px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 16px 40px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            border: none;
+            font-family: inherit;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 8px 24px var(--primary-glow);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: none;
+            z-index: 20;
+        }
+
+        .btn-action-main:hover { transform: translateX(-50%) scale(1.05); }
+        .btn-action-main.visible { display: flex; align-items: center; gap: 12px; animation: slideUp 0.4s ease; }
+
+        /* Right Panel - Results */
+        .results-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card-glass {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            animation: fadeIn 0.5s ease;
+        }
+
+        .card-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-dim);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-title svg { width: 14px; height: 14px; fill: var(--primary); }
+
+        .recognition-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .idle-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             text-align: center;
+            gap: 16px;
+            color: var(--text-dim);
         }
 
-        .conf-row { display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .conf-pill { padding: 2px 8px; border-radius: 8px; font-size: 11px; font-weight: 700; }
-        .conf-pill.high { background: rgba(34,197,94,0.12); color: #4ade80; }
-        .conf-pill.medium { background: rgba(245,158,11,0.12); color: #fbbf24; }
-        .conf-track { flex: 0 0 120px; height: 3px; background: #334155; border-radius: 2px; overflow: hidden; }
-        .conf-fill { height: 100%; border-radius: 2px; transition: width .5s; }
-        .conf-fill.high { background: #22c55e; }
-        .conf-fill.medium { background: #f59e0b; }
+        .idle-content svg { width: 64px; height: 64px; fill: rgba(255, 255, 255, 0.05); }
 
-        .intent-options-sec { display: none; text-align: center; }
-        .intent-options-sec.visible { display: block; }
-        .intent-lbl { font-size: 9px; font-weight: 700; color: #6366f1; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px; }
-        .intent-chips { display: flex; flex-direction: column; gap: 3px; }
-        .intent-chip {
-            display: block; width: 100%; padding: 6px 10px; border-radius: 6px;
-            border: 1px solid #334155; background: #0f172a;
-            color: #cbd5e1; font-family: 'Inter'; font-size: 11px; font-weight: 500;
-            cursor: pointer; text-align: left; transition: all 0.15s;
+        .detected-content {
+            display: none;
+            animation: fadeIn 0.4s ease;
         }
-        .intent-chip:hover { border-color: #6366f1; background: rgba(99,102,241,0.08); }
-        .intent-chip.selected {
-            border-color: #6366f1; background: rgba(99,102,241,0.15);
-            color: #a5b4fc; font-weight: 600;
-        }
-        .intent-chip-label { font-weight: 700; color: #a5b4fc; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
 
-        .top3 { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; }
-        .top3 span { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 500; background: #0f172a; color: #64748b; border: 1px solid #334155; }
-        .top3 span:first-child { background: rgba(99,102,241,0.1); color: #a5b4fc; border-color: rgba(99,102,241,0.3); font-weight: 600; }
-
-        .bottom-sec {
-            padding: 4px 10px; border-top: 1px solid #334155; flex-shrink: 0;
+        .main-word {
+            font-size: 48px;
+            font-weight: 800;
+            text-align: center;
+            background: linear-gradient(135deg, #fff, var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+            letter-spacing: -1px;
         }
-        .sec-lbl { font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 2px; }
 
-        .history-words { display: flex; flex-wrap: wrap; gap: 3px; min-height: 16px; }
-        .history-words span { padding: 1px 6px; background: rgba(34,197,94,0.1); color: #4ade80; border-radius: 3px; font-size: 10px; font-weight: 600; }
+        .confidence-meter {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
 
-        .actions {
-            display: flex; gap: 6px; padding: 4px 10px;
-            border-top: 1px solid #334155; flex-shrink: 0;
+        .meter-bar {
+            flex: 1;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+            overflow: hidden;
         }
-        .btn {
-            flex: 1; padding: 7px; border: none; border-radius: 8px;
-            font-family: 'Inter'; font-size: 12px; font-weight: 600; cursor: pointer;
-            transition: all 0.15s;
-        }
-        .btn:disabled { opacity: .3; cursor: default; }
-        .btn-confirm {
-            background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff;
-            box-shadow: 0 2px 8px rgba(99,102,241,0.2);
-        }
-        .btn-confirm:hover:not(:disabled) { transform: scale(1.02); }
-        .btn-retry { background: #334155; color: #e2e8f0; }
-        .btn-retry:hover:not(:disabled) { background: #475569; }
 
-        ::-webkit-scrollbar { width: 2px; }
-        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 1px; }
-
-        .emp-toast {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9);
-            background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px);
-            border: 1px solid #3b82f6; border-radius: 16px;
-            padding: 32px; min-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.8);
-            z-index: 2000; opacity: 0; pointer-events: none; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            text-align: center; color: white;
+        .meter-fill {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        .emp-toast.show { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
-        .emp-toast-header { font-size: 13px; color: #60a5fa; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .emp-toast-header svg { width: 18px; height: 18px; fill: currentColor; }
-        .emp-toast-body { font-size: 28px; font-weight: 700; line-height: 1.4; margin-bottom: 32px; }
-        .emp-toast-btn { background: #3b82f6; color: white; border: none; padding: 14px 40px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: all 0.2s; font-size: 16px; font-family: 'Inter', sans-serif;}
-        .emp-toast-btn:hover { background: #2563eb; transform: scale(1.05); }
+
+        .meter-val { font-size: 12px; font-weight: 700; color: var(--primary); }
+
+        .intent-options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .intent-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .intent-btn:hover { background: rgba(99, 102, 241, 0.08); border-color: var(--primary); }
+        .intent-btn.selected { background: rgba(99, 102, 241, 0.15); border-color: var(--primary); box-shadow: 0 0 15px var(--primary-glow); }
+
+        .intent-btn .label { font-size: 10px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 4px; }
+        .intent-btn .sentence { font-size: 14px; font-weight: 500; color: var(--text); }
+
+        .action-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .btn-secondary {
+            padding: 14px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text);
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); }
+
+        .history-panel {
+            flex: 0 0 180px;
+        }
+
+        .word-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .chip {
+            padding: 6px 14px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: var(--success);
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            animation: slideUp 0.3s ease;
+        }
+
+        /* Alert Toast */
+        .alert-toast {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: rgba(239, 68, 68, 0.9);
+            backdrop-filter: blur(12px);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 16px;
+            font-weight: 700;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 8px 32px rgba(239, 68, 68, 0.3);
+            pointer-events: none;
+        }
+
+        .alert-toast.visible { transform: translateX(-50%) translateY(0); }
+
+        /* Employee Message Toast */
+        .emp-message-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(3, 7, 18, 0.9);
+            backdrop-filter: blur(20px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .emp-message-card {
+            background: var(--card-bg);
+            border: 1px solid var(--primary);
+            border-radius: 32px;
+            padding: 48px;
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+            box-shadow: 0 0 50px var(--primary-glow);
+            animation: slideUp 0.5s ease;
+        }
+
+        .emp-message-card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 2px; color: var(--primary); margin-bottom: 24px; }
+        .emp-message-text { font-size: 32px; font-weight: 700; margin-bottom: 40px; line-height: 1.3; }
+
+        .btn-glow {
+            padding: 16px 48px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            font-weight: 700;
+            font-size: 18px;
+            cursor: pointer;
+            box-shadow: 0 8px 24px var(--primary-glow);
+            transition: all 0.3s;
+        }
+
+        .btn-glow:hover { transform: scale(1.05); box-shadow: 0 12px 32px var(--primary-glow); }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 3px; }
     </style>
 </head>
 <body>
-    <header class="header">
-        <div class="header-left">
-            <div class="header-logo"><svg viewBox="0 0 24 24"><path d="M12.5 1.5c-1.77 0-3.33 1.17-3.83 2.87C8.14 4.13 7.58 4 7 4a4 4 0 0 0-4 4c0 .73.2 1.41.54 2H2v2h10V8.5a.5.5 0 0 0-.5-.5.5.5 0 0 0-.5.5V10H9V8.5a2.5 2.5 0 0 1 5 0V10h-1V8.5a.5.5 0 0 0-.5-.5.5.5 0 0 0-.5.5V12h10v-2h-1.54c.34-.59.54-1.27.54-2a4 4 0 0 0-4-4c-.58 0-1.14.13-1.67.37A3.998 3.998 0 0 0 12.5 1.5z"/></svg></div>
-            <div>
-                <div class="header-title">Sign Language Kiosk</div>
-                <div class="header-subtitle">Indian Sign Language Recognition for Bank</div>
+    <header>
+        <div class="brand">
+            <div class="logo">
+                <svg viewBox="0 0 24 24"><path d="M12.5 1.5c-1.77 0-3.33 1.17-3.83 2.87C8.14 4.13 7.58 4 7 4a4 4 0 0 0-4 4c0 .73.2 1.41.54 2H2v2h10V8.5a.5.5 0 0 0-.5-.5.5.5 0 0 0-.5.5V10H9V8.5a2.5 2.5 0 0 1 5 0V10h-1V8.5a.5.5 0 0 0-.5-.5.5.5 0 0 0-.5.5V12h10v-2h-1.54c.34-.59.54-1.27.54-2a4 4 0 0 0-4-4c-.58 0-1.14.13-1.67.37A3.998 3.998 0 0 0 12.5 1.5z"/></svg>
+            </div>
+            <div class="brand-info">
+                <h1>ISL BANK KIOSK</h1>
+                <p>Cognitive Recognition v2.0</p>
             </div>
         </div>
-        <div class="header-right">
-            <button class="btn-end-session" id="btnEndSession" onclick="endSession()">End Session</button>
-            <div class="conn-badge" id="connBadge"><span class="dot"></span><span id="connText">Connecting</span></div>
+        <div class="header-actions">
+            <div class="conn-status" id="connStatus">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Downlink Offline</span>
+            </div>
         </div>
     </header>
 
-    <div class="alert-popup" id="multiAlert">Multiple people detected - only one user allowed</div>
-
-    <div class="session-overlay" id="sessionOverlay">
-        <div class="session-card">
-            <h2>Session Complete</h2>
-            <p>Summary of confirmed signs:</p>
-            <div class="confirmed-words" id="summaryWords"></div>
-            <div style="display:flex; gap:8px; justify-content:center;">
-                <button onclick="newSession()">Start New Session</button>
-                <button class="btn-close-system" onclick="closeSystem()">Close System</button>
-            </div>
-        </div>
+    <div class="alert-toast" id="multiAlert">
+        <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+        Multiple users detected. Please remain alone in view.
     </div>
 
-    <div id="employeeMsgToast" class="emp-toast">
-        <div class="emp-toast-header">
-            <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
-            Message from Bank Staff
-        </div>
-        <div class="emp-toast-body" id="empToastBody"></div>
-        <button onclick="closeEmpToast()" class="emp-toast-btn">Acknowledge</button>
-    </div>
-
-    <div class="main">
-        <div class="card">
-            <div class="card-hdr"><svg viewBox="0 0 24 24"><path d="M15 8v8H5V8h10m1-2H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4V7c0-.55-.45-1-1-1z"/></svg>Camera Feed</div>
-            <div class="cam-wrap">
-                <img id="camFeed" alt="Camera" />
-                <div class="cam-status waiting" id="camStatus">Waiting for user</div>
+    <main class="app-container">
+        <div class="feed-panel">
+            <div class="overlay-status" id="overlayStatus">
+                <div class="rec-dot"></div>
+                <span id="statusLabel">AWAITING USER</span>
             </div>
-            <button class="btn-stop" id="btnStop" onclick="doStopSigning()">Done Signing</button>
+            
+            <div class="video-container">
+                <img id="camFeed" src="/api/video_feed" alt="Video Stream" />
+            </div>
+
+            <button class="btn-action-main" id="btnStop" onclick="doStopSigning()">
+                <svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+                FINISH SIGNING
+            </button>
         </div>
 
-        <div class="card">
-            <div class="card-hdr"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Recognition Results</div>
-
-            <div class="results-body">
-                <div class="waiting-state" id="stIdle">
-                    <svg viewBox="0 0 24 24"><path d="M12.5 1.5c-1.77 0-3.33 1.17-3.83 2.87C8.14 4.13 7.58 4 7 4a4 4 0 0 0-4 4c0 .73.2 1.41.54 2H2v2h10V8.5a.5.5 0 0 0-.5-.5.5.5 0 0 0-.5.5V10H9V8.5a2.5 2.5 0 0 1 5 0V10h-1V8.5a.5.5 0 0 0-.5-.5.5.5 0 0 0-.5.5V12h10v-2h-1.54c.34-.59.54-1.27.54-2a4 4 0 0 0-4-4c-.58 0-1.14.13-1.67.37A3.998 3.998 0 0 0 12.5 1.5z"/></svg>
-                    <div class="text">Show your hands to the camera.<br>Sign clearly, then click <b>"Done Signing"</b>.</div>
+        <div class="results-panel">
+            <div class="card-glass recognition-state">
+                <div class="card-title">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-12h2v6h-2zm0 8h2v2h-2z"/></svg>
+                    Recognition Engine
                 </div>
 
-                <div id="stDetected" style="display:none;">
-                    <div class="word-box" id="wordBox">-</div>
-                    <div class="intent-badge" id="intentBadge"></div>
-                    <div class="category-badge" id="categoryBadge"></div>
-                    <div class="conf-row">
-                        <span class="conf-pill" id="confPill">-</span>
-                        <div class="conf-track"><div class="conf-fill" id="confBar"></div></div>
+                <div class="idle-content" id="stIdle">
+                    <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                    <p>Position your hands within the frame<br>and begin signing clearly.</p>
+                </div>
+
+                <div class="detected-content" id="stDetected">
+                    <div class="main-word" id="wordBox">ACCOUNT</div>
+                    
+                    <div class="confidence-meter">
+                        <div class="meter-bar"><div class="meter-fill" id="confBar"></div></div>
+                        <span class="meter-val" id="confVal">98%</span>
                     </div>
-                    <div class="intent-options-sec" id="intentOptionsSec">
-                        <div class="intent-lbl">Select what you want to communicate</div>
-                        <div class="intent-chips" id="intentChips"></div>
+
+                    <div class="card-title" style="margin-bottom: 12px;">SELECT INTENT</div>
+                    <div class="intent-options" id="intentChips"></div>
+
+                    <div class="action-group">
+                        <button class="btn-glow" id="btnOk" onclick="doConfirm()">TRANSMIT</button>
+                        <button class="btn-secondary" id="btnRetry" onclick="doRetry()">RETRY</button>
                     </div>
-                    <div class="top3" id="top3"></div>
                 </div>
             </div>
 
-            <div class="bottom-sec">
-                <div class="sec-lbl">Confirmed Words</div>
-                <div class="history-words" id="historyWords"></div>
+            <div class="card-glass history-panel">
+                <div class="card-title">CONFIRMED LOG</div>
+                <div class="word-chips" id="historyWords"></div>
             </div>
+        </div>
+    </main>
 
-            <div class="actions">
-                <button class="btn btn-confirm" id="btnOk" disabled onclick="doConfirm()">Send to Employee</button>
-                <button class="btn btn-retry" id="btnRetry" disabled onclick="doRetry()">Retry</button>
-            </div>
+    <div class="emp-message-overlay" id="empMessageOverlay">
+        <div class="emp-message-card">
+            <h2>Incoming Staff Message</h2>
+            <div class="emp-message-text" id="empToastBody">Please wait for a moment, I am looking into your request.</div>
+            <button class="btn-glow" onclick="closeEmpToast()">ACKNOWLEDGE</button>
         </div>
     </div>
 
     <script>
+        const sock = io(location.origin, { transports: ['websocket'] });
+        const $ = id => document.getElementById(id);
+        
         let curWord = null, curSentence = null, curConf = 0, sessionId = null;
         let confirmedWords = [], isPaused = false, selectedIntent = null;
 
-        const sock = io(location.origin, { transports: ['websocket', 'polling'], reconnection: true, reconnectionAttempts: 50, reconnectionDelay: 1000 });
-        const $ = id => document.getElementById(id);
-
-        const connBadge = $('connBadge'), connText = $('connText');
-        const camStatus = $('camStatus'), multiAlert = $('multiAlert');
+        const statusDot = $('statusDot'), statusText = $('statusText');
+        const overlayStatus = $('overlayStatus'), statusLabel = $('statusLabel');
         const stIdle = $('stIdle'), stDetected = $('stDetected');
-        const wordBox = $('wordBox'), confPill = $('confPill'), confBar = $('confBar');
-        const top3El = $('top3');
-        const btnOk = $('btnOk'), btnRetry = $('btnRetry');
-        const historyWords = $('historyWords');
-        const btnEndSession = $('btnEndSession'), btnStop = $('btnStop');
-        const intentOptionsSec = $('intentOptionsSec'), intentChips = $('intentChips');
+        const wordBox = $('wordBox'), confBar = $('confBar'), confVal = $('confVal');
+        const btnStop = $('btnStop'), intentChips = $('intentChips');
+        const historyWords = $('historyWords'), multiAlert = $('multiAlert');
 
         sock.on('connect', () => {
-            connBadge.classList.add('ok'); connText.textContent = 'Connected';
+            statusDot.className = 'status-dot online';
+            statusText.textContent = 'Downlink Secure';
             sock.emit('join_kiosk');
         });
-        sock.on('disconnect', () => { connBadge.classList.remove('ok'); connText.textContent = 'Disconnected'; });
+
+        sock.on('disconnect', () => {
+            statusDot.className = 'status-dot';
+            statusText.textContent = 'Downlink Offline';
+        });
 
         sock.on('user_detected', data => {
             sessionId = data.session_id;
-            confirmedWords = []; historyWords.innerHTML = '';
-            if (!isPaused) { camStatus.className = 'cam-status scanning'; camStatus.textContent = 'Recording - sign now, click Done when finished'; show('idle'); btnStop.classList.add('visible'); }
-            btnEndSession.classList.add('visible');
+            if (!isPaused) {
+                overlayStatus.className = 'overlay-status scanning';
+                statusLabel.textContent = 'RECORDING ACTIVE';
+                btnStop.classList.add('visible');
+                show('idle');
+            }
         });
 
-        let multiTimer = null;
         sock.on('multi_person_alert', () => {
-            multiAlert.classList.add('show'); btnStop.classList.remove('visible');
-            camStatus.className = 'cam-status paused'; camStatus.textContent = 'Multiple people detected';
-            if (multiTimer) clearTimeout(multiTimer);
-            multiTimer = setTimeout(() => { multiAlert.classList.remove('show'); if (!isPaused && sessionId) { camStatus.className = 'cam-status scanning'; camStatus.textContent = 'Recording - sign now'; btnStop.classList.add('visible'); } }, 2000);
+            multiAlert.classList.add('visible');
+            setTimeout(() => multiAlert.classList.remove('visible'), 3000);
         });
-
-        sock.on('prediction_error', data => { camStatus.className = 'cam-status scanning'; camStatus.textContent = data.error + ' - try again'; btnStop.classList.add('visible'); });
 
         sock.on('sign_detected', data => {
-            curWord = data.word; curSentence = data.sentence; curConf = data.confidence; isPaused = true;
-            selectedIntent = null;
-            show('detected'); btnStop.classList.remove('visible');
-            wordBox.textContent = curWord;
-            const pct = Math.round(curConf * 100), lvl = pct >= 85 ? 'high' : 'medium';
-            confPill.textContent = pct + '%'; confPill.className = 'conf-pill ' + lvl;
-            confBar.style.width = pct + '%'; confBar.className = 'conf-fill ' + lvl;
-
-            const ib = $('intentBadge');
-            if (data.intent && data.intent !== 'unknown') { ib.textContent = 'Intent: ' + data.intent.replace(/_/g, ' '); ib.style.display = 'block'; } else { ib.style.display = 'none'; }
-            const cb = $('categoryBadge');
-            if (data.category && data.category !== 'general') { cb.textContent = data.category; cb.style.display = 'block'; } else { cb.style.display = 'none'; }
-
-            if (data.intent_options && data.intent_options.length > 0) {
+            curWord = data.word; curSentence = data.sentence; curConf = data.confidence;
+            isPaused = true;
+            btnStop.classList.remove('visible');
+            overlayStatus.className = 'overlay-status';
+            statusLabel.textContent = 'ANALYSIS COMPLETE';
+            
+            wordBox.textContent = curWord.toUpperCase();
+            const pct = Math.round(curConf * 100);
+            confBar.style.width = pct + '%';
+            confVal.textContent = pct + '%';
+            
+            if (data.intent_options) {
                 intentChips.innerHTML = '';
                 data.intent_options.forEach((opt, idx) => {
-                    const chip = document.createElement('button');
-                    chip.className = 'intent-chip' + (idx === 0 ? ' selected' : '');
-                    chip.innerHTML = '<span class="intent-chip-label">' + opt.label + '</span><br>' + opt.sentence;
-                    chip.onclick = () => {
-                        intentChips.querySelectorAll('.intent-chip').forEach(c => c.classList.remove('selected'));
-                        chip.classList.add('selected');
+                    const btn = document.createElement('div');
+                    btn.className = 'intent-btn' + (idx === 0 ? ' selected' : '');
+                    btn.innerHTML = `<span class="label">${opt.label}</span><span class="sentence">${opt.sentence}</span>`;
+                    btn.onclick = () => {
+                        document.querySelectorAll('.intent-btn').forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
                         selectedIntent = opt;
                         curSentence = opt.sentence;
                     };
-                    intentChips.appendChild(chip);
+                    intentChips.appendChild(btn);
                 });
                 selectedIntent = data.intent_options[0];
                 curSentence = data.intent_options[0].sentence;
-                intentOptionsSec.classList.add('visible');
-            } else {
-                intentOptionsSec.classList.remove('visible');
             }
-
-            if (data.top3) { top3El.innerHTML = data.top3.map(t => '<span>' + t.word + ' (' + Math.round(t.confidence * 100) + '%)</span>').join(''); }
-            btnOk.disabled = false; btnRetry.disabled = false;
-            camStatus.className = 'cam-status paused'; camStatus.textContent = 'Select intent and send, or retry';
-        });
-
-        sock.on('retry_ack', () => {});
-        sock.on('employee_message', data => {
-            const toast = document.getElementById('employeeMsgToast');
-            document.getElementById('empToastBody').textContent = data.reply_text;
-            toast.classList.add('show');
             
-            const tag = document.createElement('span'); 
-            tag.style.background = 'rgba(59, 130, 246, 0.1)';
-            tag.style.color = '#60a5fa';
-            tag.style.border = '1px solid rgba(59, 130, 246, 0.3)';
-            tag.textContent = "Bank: " + data.reply_text; 
-            historyWords.appendChild(tag);
+            show('detected');
         });
 
-        function closeEmpToast() {
-            document.getElementById('employeeMsgToast').classList.remove('show');
-            if (sessionId) {
-                camStatus.className = 'cam-status scanning'; 
-                camStatus.textContent = 'Recording - sign next word';
-                btnStop.classList.add('visible');
-            }
-        }
+        sock.on('employee_message', data => {
+            $('empToastBody').textContent = data.reply_text;
+            $('empMessageOverlay').style.display = 'flex';
+        });
 
         function show(s) {
             stIdle.style.display = s === 'idle' ? 'flex' : 'none';
             stDetected.style.display = s === 'detected' ? 'block' : 'none';
-            if (s === 'idle') intentOptionsSec.classList.remove('visible');
         }
 
         function doStopSigning() {
             btnStop.classList.remove('visible');
-            camStatus.className = 'cam-status processing'; camStatus.textContent = 'Processing...';
+            statusLabel.textContent = 'PROCESSING AI...';
             sock.emit('stop_signing', { session_id: sessionId });
         }
 
         function doConfirm() {
             if (!curWord) return;
             confirmedWords.push(curWord);
-            const tag = document.createElement('span'); tag.textContent = curWord; historyWords.appendChild(tag);
+            const chip = document.createElement('div');
+            chip.className = 'chip';
+            chip.textContent = curWord;
+            historyWords.appendChild(chip);
+            
             sock.emit('user_confirmed', {
                 session_id: sessionId,
                 word: curWord,
@@ -459,47 +593,30 @@
                 confidence: curConf,
                 selected_intent: selectedIntent ? selectedIntent.label : null
             });
-            curWord = null; curSentence = null; curConf = 0; selectedIntent = null;
-            btnOk.disabled = true; btnRetry.disabled = true; isPaused = false;
-            show('idle'); btnStop.classList.add('visible');
-            camStatus.className = 'cam-status scanning'; camStatus.textContent = 'Recording - sign next word';
+            
+            isPaused = false;
+            show('idle');
+            btnStop.classList.add('visible');
+            overlayStatus.className = 'overlay-status scanning';
+            statusLabel.textContent = 'RECORDING NEXT SIGN';
         }
 
         function doRetry() {
-            curWord = null; curSentence = null; curConf = 0; selectedIntent = null;
-            btnOk.disabled = true; btnRetry.disabled = true; isPaused = false;
+            isPaused = false;
             sock.emit('user_retry', { session_id: sessionId });
-            show('idle'); btnStop.classList.add('visible');
-            camStatus.className = 'cam-status scanning'; camStatus.textContent = 'Recording - sign again';
+            show('idle');
+            btnStop.classList.add('visible');
+            overlayStatus.className = 'overlay-status scanning';
+            statusLabel.textContent = 'RETRYING SIGN';
         }
 
-        function endSession() {
-            sock.emit('stop_detection', { session_id: sessionId }); isPaused = false;
-            show('idle'); btnStop.classList.remove('visible');
-            camStatus.className = 'cam-status waiting'; camStatus.textContent = 'Session ended';
-            btnEndSession.classList.remove('visible'); btnOk.disabled = true; btnRetry.disabled = true;
-            const sw = $('summaryWords'); sw.innerHTML = '';
-            if (confirmedWords.length > 0) { confirmedWords.forEach(w => { const s = document.createElement('span'); s.textContent = w; sw.appendChild(s); }); }
-            else { sw.innerHTML = '<span style="color:#64748b;">No words confirmed</span>'; }
-            $('sessionOverlay').classList.add('show');
+        function closeEmpToast() {
+            $('empMessageOverlay').style.display = 'none';
         }
-
-        function newSession() {
-            $('sessionOverlay').classList.remove('show');
-            confirmedWords = []; historyWords.innerHTML = '';
-            camStatus.className = 'cam-status waiting'; camStatus.textContent = 'Waiting for user';
-            sock.emit('start_detection', {});
-        }
-
-        function closeSystem() {
-            sock.emit('stop_detection', { session_id: sessionId });
-            $('sessionOverlay').classList.remove('show');
-            document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0f172a;color:#64748b;font-family:Inter,sans-serif;font-size:18px;text-align:center;"><div><div style="font-size:32px;margin-bottom:12px;">Session Ended</div><div style="font-size:14px;color:#475569;">You may close this window now.</div></div></div>';
-            setTimeout(() => { window.close(); }, 1000);
-        }
-
+        
         (function initCam() {
-            const img = $('camFeed'); img.src = '/api/video_feed';
+            const img = $('camFeed');
+            img.src = '/api/video_feed';
             img.onerror = () => setTimeout(() => { img.src = '/api/video_feed?' + Date.now(); }, 3000);
         })();
     </script>
