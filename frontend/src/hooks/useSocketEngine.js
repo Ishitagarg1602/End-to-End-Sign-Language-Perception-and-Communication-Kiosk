@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = 'http://localhost:8000';
+const BACKEND_IP = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+const SOCKET_URL = `http://${BACKEND_IP}:8000`;
 
 export function useSocketEngine(role) {
   const socketRef = useRef(null);

@@ -21,15 +21,23 @@ export default function KioskDashboard() {
   // Typewriter effect for employee message
   const [displayedText, setDisplayedText] = useState('');
   const [typewriterDone, setTypewriterDone] = useState(false);
+  const [cameraError, setCameraError] = useState(null);
 
   // Camera init
   useEffect(() => {
     async function setupCamera() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error('Camera API not supported or blocked by browser security (HTTP).');
+        }
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { width: 640, height: 480, frameRate: { ideal: 30 } } 
+        });
         if (videoRef.current) videoRef.current.srcObject = stream;
+        setCameraError(null);
       } catch (err) {
         console.error('Camera error:', err);
+        setCameraError(err.message);
       }
     }
     setupCamera();
@@ -214,8 +222,18 @@ export default function KioskDashboard() {
           <Camera size={14} color="var(--accent)" /> Camera Feed
         </div>
 
-        <div style={{ flex: 1, position: 'relative', background: '#000', margin: 8, borderRadius: 'var(--radius-sm)', overflow: 'hidden', minHeight: 0 }}>
-          <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
+        <div style={{ flex: 1, position: 'relative', background: '#000', margin: 8, borderRadius: 'var(--radius-sm)', overflow: 'hidden', minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {cameraError && (
+            <div style={{ padding: 20, textAlign: 'center', color: '#f87171', fontSize: 13 }}>
+              <AlertTriangle size={32} style={{ marginBottom: 12, margin: '0 auto' }} />
+              <p style={{ fontWeight: 600, marginBottom: 8 }}>Camera Access Failed</p>
+              <p style={{ opacity: 0.8 }}>{cameraError}</p>
+              <p style={{ marginTop: 12, fontSize: 11, color: 'var(--text-muted)' }}>
+                Tip: If using an IP address (not localhost), Chrome requires HTTPS or a "Secure Origins" override.
+              </p>
+            </div>
+          )}
+          <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', display: cameraError ? 'none' : 'block' }} />
           <canvas ref={canvasRef} style={{ display: 'none' }} />
 
           {/* Status bar */}
