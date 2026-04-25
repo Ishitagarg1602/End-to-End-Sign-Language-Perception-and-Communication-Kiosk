@@ -45,8 +45,6 @@ MODEL_PATH = BASE_DIR / 'model_cnn_bilstm.pt'
 TEMPLATES_PATH = BASE_DIR / 'templates.json'
 CLASSES_PATH = BASE_DIR / 'splits' / 'classes.json'
 HAND_LANDMARKER_PATH = PROJECT_ROOT / 'models' / 'hand_landmarker.task'
-FACE_LANDMARKER_PATH = PROJECT_ROOT / 'models' / 'face_landmarker.task'
-POSE_LANDMARKER_PATH = PROJECT_ROOT / 'models' / 'pose_landmarker.task'
 FRONTEND_DIR = BASE_DIR / 'frontend'
 FEEDBACK_DIR = PROJECT_ROOT / 'feedback'
 DB_PATH = PROJECT_ROOT / 'sessions.db'
@@ -80,8 +78,13 @@ def create_butterworth_filter():
 
 def create_hand_landmarker() -> vision.HandLandmarker:
     if not HAND_LANDMARKER_PATH.exists():
-        logger.warning(f"Hand landmarker model not found at {HAND_LANDMARKER_PATH}. Attempting download...")
-        download_model('https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task', HAND_LANDMARKER_PATH)
+        logger.error(f"Hand landmarker model not found at {HAND_LANDMARKER_PATH}")
+        logger.error("Download it with:")
+        logger.error('  python -c "import urllib.request; urllib.request.urlretrieve('
+                     "'https://storage.googleapis.com/mediapipe-models/"
+                     "hand_landmarker/hand_landmarker/float16/latest/"
+                     "hand_landmarker.task', 'models/hand_landmarker.task')\"")
+        return None
 
     def try_create(delegate_type):
         base_options = mp_tasks.BaseOptions(
@@ -282,24 +285,6 @@ def check_person_in_zone_by_hands(hand_features: Optional[np.ndarray]) -> tuple:
     return 0, False
 
 
-def detect_people_count(frame: np.ndarray,
-                        face_detector: vision.FaceLandmarker,
-                        pose_detector: vision.PoseLandmarker,
-                        hand_detector: vision.HandLandmarker):
-    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-
-    face_results = face_detector.detect(mp_image)
-    pose_results = pose_detector.detect(mp_image)
-    hand_results = hand_detector.detect(mp_image)
-
-    num_faces = len(face_results.face_landmarks) if face_results.face_landmarks else 0
-    num_poses = len(pose_results.pose_landmarks) if pose_results.pose_landmarks else 0
-    num_hands = len(hand_results.hand_landmarks) if hand_results.hand_landmarks else 0
-
-    return num_faces, num_poses, num_hands
-
-
 sio = socketio.AsyncServer(
     async_mode='asgi',
     cors_allowed_origins='*',
@@ -465,23 +450,21 @@ def log_session_end(session_id: str):
     except Exception as e:
         logger.warning(f"DB error (session end): {e}")
 
+
 async def camera_loop():
     state.camera_running = True
     logger.info("★ Waiting for camera frames from React Kiosk UI...")
 
     hand_detector = create_hand_landmarker()
-    face_detector = create_face_landmarker()
-    pose_detector = create_pose_landmarker()
-
-    if hand_detector is None or face_detector is None or pose_detector is None:
-        logger.error("Failed to initialize one or more MediaPipe detectors.")
+    if hand_detector is None:
+        logger.error("Cannot create hand detector.")
         state.camera_running = False
         return
 
     DETECT_INTERVAL = 0.12
     last_detect_time = 0.0
 
-    logger.info("Detection ready: Web-Stream mode with Face, Pose, and Hand tracking")
+    logger.info("Detection ready: Web-Stream mode (no local cv2 lock)")
 
     try:
         while state.camera_running:
@@ -506,32 +489,19 @@ async def camera_loop():
             last_detect_time = now
 
             small_frame = cv2.resize(frame, DETECTION_FRAME_SIZE)
-
-            # Perform multi-user detection
-            num_faces, num_poses, num_hands = await asyncio.to_thread(
-                detect_people_count, small_frame, face_detector, pose_detector, hand_detector
-            )
-
-            # Perform hand landmark extraction for SL model (expects exactly 1 or 2 hands processed)
-            current_features, extracted_hand_count = await asyncio.to_thread(
+            current_features, num_hands = await asyncio.to_thread(
                 extract_hand_landmarks, small_frame, hand_detector
             )
-
             hands_visible = current_features is not None
+
             if hands_visible:
                 state.last_zone_time = now
 
-            # Multi-person detection logic
-            # Trigger alert if >1 face, >1 pose, or >2 hands
-            is_multiple = num_faces > 1 or num_poses > 1 or num_hands > 2
-
-            if is_multiple:
-                logger.warning(f"Multiple users detected: faces={num_faces}, poses={num_poses}, hands={num_hands}")
+            if num_hands > 2:
                 await sio.emit('multi_person_alert',
-                              {'faces': num_faces, 'poses': num_poses, 'hands': num_hands},
-                              room='kiosk')
+                              {'hands': num_hands}, room='kiosk')
                 state.frame_buffer = []
-                await asyncio.sleep(0.2)
+                await asyncio.sleep(0.1)
                 continue
 
             in_zone = False
@@ -610,11 +580,6 @@ async def join_kiosk(sid, data=None):
     state.user_in_zone = False
     state.last_zone_time = 0.0
     await sio.emit('status', {'message': 'Connected to kiosk', 'camera': state.camera_running}, room=sid)
-    
-    if state.current_session_id:
-        await sio.emit('user_detected', {'session_id': state.current_session_id}, room=sid)
-        if state.session_accepted_by_employee:
-            await sio.emit('session_status', {'status': 'accepted', 'session_id': state.current_session_id}, room=sid)
 
 
 @sio.event
@@ -623,14 +588,6 @@ async def join_employee(sid, data=None):
     state.employee_sids.add(sid)
     logger.info(f"Employee joined: {sid}")
     await sio.emit('status', {'message': 'Connected as employee'}, room=sid)
-
-    if state.current_session_id and not state.session_accepted_by_employee:
-        await sio.emit('session_request', {
-            'session_id': state.current_session_id,
-            'timestamp': datetime.now().isoformat()
-        }, room=sid)
-    elif state.current_session_id and state.session_accepted_by_employee:
-        await sio.emit('session_status', {'status': 'accepted', 'session_id': state.current_session_id}, room=sid)
 
 
 @sio.event
@@ -927,17 +884,14 @@ INTENT_ALTERNATIVES = {
 
 
 def generate_intent_options(word, tpl):
-    # Try dynamic Groq NLP first for rich, contextual options
-    nlp_options = generate_nlp_intents(word)
-    if nlp_options and len(nlp_options) > 0:
-        return nlp_options
-
-    # Fallback to predefined static alternatives
     options = INTENT_ALTERNATIVES.get(word, [])
     if options:
         return options
-
-    # Last resort: use the basic template
+    # Fallback: try OpenAI NLP
+    nlp_options = generate_nlp_intents(word)
+    if nlp_options:
+        return nlp_options
+    # Last resort: use template
     if isinstance(tpl, dict):
         options = [{'label': tpl.get('intent', word).replace('_', ' ').title(),
                      'sentence': tpl.get('sentence', f'(Sign: {word})')}]
@@ -945,51 +899,39 @@ def generate_intent_options(word, tpl):
 
 
 def generate_nlp_intents(word: str) -> list:
-    """Use Groq API to generate contextual banking intent options for a detected sign word."""
-    api_key = os.environ.get('GROQ_API_KEY', '')
-    if not api_key or 'your_key' in api_key:
-        logger.warning("GROQ_API_KEY not set. Falling back to offline intents.")
+    """Use OpenAI to generate contextual banking intent options for an unknown sign word."""
+    api_key = os.environ.get('OPENAI_API_KEY', '')
+    if not api_key or api_key.startswith('sk-abcd'):
+        # Fallback to offline keyword similarity if no real key
         return _offline_intent_fallback(word)
-
     try:
         import httpx
-        # We ask for a JSON object with a 'choices' key containing the array
         prompt = (
-            f"You are a helpful banking assistant for a Sign Language Kiosk. "
-            f"The user just signed the word '{word}'. "
-            f"Generate exactly 4 diverse, polite, and realistic banking intents a customer might have when signing '{word}'. "
-            f"Return a JSON object with a single key 'intents' which is an array of objects. "
-            f"Each object must have: 'label' (a 2-3 word title) and 'sentence' (a full first-person request). "
-            f"Example: {{\"intents\": [{{\"label\": \"Check Balance\", \"sentence\": \"I would like to check my current account balance.\"}}]}}"
+            f"A deaf person at a bank kiosk has signed the word '{word}' in Indian Sign Language. "
+            f"Generate exactly 3 possible banking-related intent options. "
+            f"Return ONLY a JSON array of objects with 'label' and 'sentence' keys. "
+            f"The 'sentence' should be a polite first-person banking request. "
+            f"Example: [{{\"label\": \"Check Balance\", \"sentence\": \"I want to check my account balance.\"}}]"
         )
-
         resp = httpx.post(
-            'https://api.groq.com/openai/v1/chat/completions',
+            'https://api.openai.com/v1/chat/completions',
             headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
-            json={
-                'model': 'llama-3.1-70b-versatile',
-                'messages': [
-                    {'role': 'system', 'content': 'You only output valid JSON.'},
-                    {'role': 'user', 'content': prompt}
-                ],
-                'temperature': 0.6,
-                'response_format': {'type': 'json_object'}
-            },
-            timeout=6.0
+            json={'model': 'gpt-3.5-turbo', 'messages': [{'role': 'user', 'content': prompt}],
+                  'temperature': 0.7, 'max_tokens': 300},
+            timeout=8.0
         )
-        resp.raise_for_status()
         data = resp.json()
         content = data['choices'][0]['message']['content'].strip()
-        parsed = json.loads(content)
-
-        if 'intents' in parsed:
-            return parsed['intents']
-        if isinstance(parsed, list):
-            return parsed
-
+        # Parse JSON from response
+        if content.startswith('['):
+            return json.loads(content)
+        # Try to extract JSON array from text
+        import re
+        match = re.search(r'\[.*\]', content, re.DOTALL)
+        if match:
+            return json.loads(match.group())
     except Exception as e:
-        logger.warning(f"Groq intent generation failed for '{word}': {e}")
-
+        logger.warning(f"OpenAI intent generation failed for '{word}': {e}")
     return _offline_intent_fallback(word)
 
 

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSocketEngine } from '../hooks/useSocketEngine';
-import { Briefcase, Mic, Square, Send, Activity, LogOut, Check, X, MessageSquare, Terminal, Zap, ShieldCheck, RotateCcw, AlertTriangle } from 'lucide-react';
+import { Briefcase, Mic, Square, Send, Activity, LogOut, Check, X, MessageSquare } from 'lucide-react';
 
 export default function EmployeeDashboard() {
   const {
@@ -49,8 +49,7 @@ export default function EmployeeDashboard() {
         try {
           const form = new FormData();
           form.append('audio', blob, 'recording.webm');
-          const backendIp = window.location.hostname;
-          const res = await fetch(`http://${backendIp}:8000/api/transcribe`, { method: 'POST', body: form });
+          const res = await fetch('http://localhost:8000/api/transcribe', { method: 'POST', body: form });
           const data = await res.json();
           if (data.text) sendReply(data.text);
         } catch (err) {
@@ -84,189 +83,195 @@ export default function EmployeeDashboard() {
   const quickReplies = ['Please wait', 'One moment', 'Please show ID', 'Proceeding with request', 'Please sign again', 'Your request is complete'];
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-page)' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
 
       {/* ── Sidebar ── */}
-      <nav style={{ width: 80, background: 'rgba(2,6,23,0.95)', borderRight: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 0', gap: 32, flexShrink: 0, zIndex: 100 }}>
-        <div style={{ width: 48, height: 48, background: 'linear-gradient(135deg, var(--primary), var(--accent))', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', boxShadow: '0 4px 15px var(--primary-glow)' }}>
-          <Briefcase size={22} />
+      <nav style={{ width: 72, background: 'var(--bg-surface)', borderRight: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 0', gap: 28, flexShrink: 0 }}>
+        <div style={{ width: 40, height: 40, background: 'var(--primary)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', boxShadow: 'var(--shadow-md)' }}>
+          <Briefcase size={20} />
         </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div style={{ width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 14, background: 'rgba(59,130,246,0.1)', color: 'var(--primary)', border: '1px solid var(--primary-glow)' }}>
-            <Terminal size={22} />
-          </div>
-          <div style={{ width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 14, color: 'var(--text-faint)', cursor: 'pointer' }}>
-            <Zap size={22} />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12, background: 'var(--bg-subtle)', color: 'var(--accent)', cursor: 'pointer' }}>
+            <Activity size={20} />
           </div>
         </div>
-        <div onClick={() => navigate('/login')} style={{ width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 14, color: 'var(--danger)', cursor: 'pointer', background: 'rgba(239,68,68,0.05)' }}>
-          <LogOut size={22} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: isConnected ? 'var(--success)' : 'var(--danger)', boxShadow: isConnected ? '0 0 8px var(--success)' : 'none' }} />
+            <span style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: 0.5 }}>{isConnected ? 'LIVE' : 'OFF'}</span>
+          </div>
+          <div onClick={() => navigate('/login')} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12, color: 'var(--danger)', cursor: 'pointer' }}>
+            <LogOut size={20} />
+          </div>
         </div>
       </nav>
 
       {/* ── Main Workspace ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '32px 40px', gap: 32 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* Header */}
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 24, fontWeight: 700, letterSpacing: -0.5, textTransform: 'uppercase' }}>Command Interface</h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 20px', borderRadius: 30, background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)' }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)', boxShadow: '0 0 10px var(--success)' }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--success)', letterSpacing: 1, textTransform: 'uppercase' }}>
-              Satellite Link Secure {sessionId ? `[ID: ${sessionId.slice(0,8)}]` : ''}
+        <header style={{ padding: '20px 36px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)', flexShrink: 0 }}>
+          <h1 className="heading-display" style={{ fontSize: 18, letterSpacing: 0.5 }}>ISL Banking Interface</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 16px', borderRadius: 30, background: isConnected ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${isConnected ? 'rgba(5,150,105,0.2)' : 'rgba(220,38,38,0.2)'}` }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: isConnected ? 'var(--success)' : 'var(--danger)', boxShadow: isConnected ? '0 0 10px var(--success)' : 'none' }} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: isConnected ? 'var(--success)' : 'var(--danger)', letterSpacing: 1, textTransform: 'uppercase' }}>
+              {isConnected ? 'Data Link Secure' : 'Offline'}
             </span>
           </div>
         </header>
 
         {/* Grid */}
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 400px', gap: 32, overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, padding: '24px 36px', overflow: 'hidden' }}>
 
           {/* ══ Left Panel: Kiosk Downlink ══ */}
           <div className="surface-card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ padding: '20px 28px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 12, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 2 }}>
-              <ShieldCheck size={16} color="var(--primary)" /> Live Kiosk Transmission
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>
+              <MessageSquare size={14} color="var(--accent)" /> Kiosk Downlink
             </div>
-            
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 40, position: 'relative' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 20 }}>
+
               {/* Session Request Alert */}
               {sessionRequest && (
                 <div className="animate-enter" style={{
-                  position: 'absolute', top: 32, left: '50%', transform: 'translateX(-50%)',
-                  background: 'rgba(59,130,246,0.1)', border: '1px solid var(--primary-glow)',
-                  padding: '24px 40px', borderRadius: 20, textAlign: 'center', zIndex: 100,
-                  boxShadow: '0 10px 40px rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)'
+                  background: 'var(--accent-light)', border: '1px solid rgba(37,99,235,0.3)',
+                  borderRadius: 16, padding: 24, textAlign: 'center', marginBottom: 20, flexShrink: 0,
+                  boxShadow: 'var(--shadow-lg)'
                 }}>
-                  <div style={{ color: 'var(--primary)', fontSize: 14, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 20 }}>
-                    Inbound Handshake Request
-                    <div style={{ fontSize: 18, color: 'white', marginTop: 10, fontFamily: 'var(--font-mono)' }}>
-                      ID: {sessionRequest?.session_id?.slice(0, 8).toUpperCase() || 'UNKNOWN'}
-                    </div>
+                  <div style={{ color: 'var(--accent)', fontSize: 14, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 20 }}>
+                    New Communication Request
                   </div>
                   <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
-                    <button className="btn btn-primary" onClick={acceptSession} style={{ padding: '12px 28px', fontSize: 12 }}>
-                      Establish Link
+                    <button className="btn" onClick={acceptSession}
+                      style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid rgba(5,150,105,0.3)', padding: '12px 28px', fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>
+                      <Check size={16} /> Accept Uplink
                     </button>
-                    <button className="btn btn-secondary" onClick={declineSession} style={{ padding: '12px 28px', fontSize: 12 }}>
-                      Abort
+                    <button className="btn btn-secondary" onClick={declineSession}
+                      style={{ padding: '12px 28px', fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>
+                      <X size={16} /> Reject
                     </button>
                   </div>
-                </div>
-              )}
-
-              {/* Multi-Person Alert */}
-              {multiPersonAlert && (
-                <div className="animate-enter" style={{
-                  position: 'absolute', top: 20, left: '50%', transform: 'translateX(-50%)',
-                  background: 'var(--danger)', color: 'white', padding: '10px 24px', borderRadius: 12,
-                  fontSize: 12, fontWeight: 700, zIndex: 200, display: 'flex', alignItems: 'center', gap: 10
-                }}>
-                  <AlertTriangle size={16} /> MULTIPLE USERS DETECTED AT KIOSK
                 </div>
               )}
 
               {/* Message Display */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+              <div style={{
+                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                textAlign: 'center', background: 'var(--bg-page)', borderRadius: 16, border: '1px dashed var(--border-light)'
+              }}>
                 {lastKioskMsg ? (
                   <div className="animate-enter">
-                    <div style={{ fontSize: 56, fontWeight: 800, lineHeight: 1.1, letterSpacing: -2, background: 'linear-gradient(135deg, #fff, var(--primary))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: 32 }}>
+                    <div style={{ fontSize: 36, fontWeight: 700, lineHeight: 1.3, letterSpacing: -0.5, color: 'var(--text-main)', marginBottom: 28 }}>
                       "{lastKioskMsg.text}"
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 32 }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 14 }}>
                       {lastKioskMsg.word && (
-                        <span className="badge badge-purple">{lastKioskMsg.word}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', padding: '6px 14px', borderRadius: 8, background: 'rgba(139,92,246,0.08)', color: '#7C3AED', border: '1px solid rgba(139,92,246,0.2)' }}>
+                          {lastKioskMsg.word}
+                        </span>
                       )}
                       {lastKioskMsg.conf != null && (
-                        <span className="badge badge-green">{Math.round(lastKioskMsg.conf * 100)}% Match</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: '6px 14px', borderRadius: 8,
+                          background: lastKioskMsg.conf >= 0.75 ? 'var(--success-bg)' : 'rgba(245,158,11,0.1)',
+                          color: lastKioskMsg.conf >= 0.75 ? 'var(--success)' : '#F59E0B' }}>
+                          {Math.round(lastKioskMsg.conf * 100)}%
+                        </span>
                       )}
-                    </div>
-                    <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-                      <button className="btn btn-primary" onClick={() => sendReply('Yes, that is correct.')} style={{ background: 'var(--success)', border: 'none', padding: '10px 20px', fontSize: 12 }}>
-                        <Check size={14} /> CORRECT
-                      </button>
-                      <button className="btn btn-secondary" onClick={() => sendReply('Could you please sign that again?')} style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid var(--danger)', padding: '10px 20px', fontSize: 12 }}>
-                        <RotateCcw size={14} /> RETRY
-                      </button>
+                      <span style={{ fontSize: 11, color: 'var(--text-faint)', letterSpacing: 1 }}>{lastKioskMsg.time}</span>
                     </div>
                   </div>
                 ) : (
-                  <div style={{ opacity: 0.2, fontSize: 18, fontWeight: 700, letterSpacing: 3, textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>
-                    Awaiting Uplink Signal
+                  <div style={{ fontSize: 15, color: 'var(--text-faint)', fontWeight: 500, letterSpacing: 2, textTransform: 'uppercase' }}>
+                    No Signal Detected
                   </div>
                 )}
               </div>
             </div>
+          </div>
 
-            {/* Bottom Control Bar */}
-            <div style={{ padding: 32, borderTop: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', gap: 24 }}>
-              <div style={{ display: 'flex', gap: 12, background: 'rgba(0,0,0,0.2)', padding: 8, borderRadius: 20, border: '1px solid var(--border-light)' }}>
-                <input type="text" value={inputText} onChange={e => setInputText(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleSend()}
-                  placeholder="Manual override transmission..."
-                  style={{ flex: 1, background: 'transparent', border: 'none', padding: '0 20px', fontSize: 16, outline: 'none' }} />
+          {/* ══ Right Panel: Transmission Control ══ */}
+          <div className="surface-card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>
+              <Send size={14} color="var(--accent)" /> Transmission Control
+            </div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 20, overflow: 'hidden' }}>
 
-                <button onClick={toggleMic} disabled={isTranscribing}
-                  style={{
-                    width: 48, height: 48, borderRadius: 14, border: `1px solid ${isMicRecording ? 'var(--danger)' : 'var(--border-light)'}`,
-                    background: isMicRecording ? 'var(--danger-bg)' : 'rgba(255,255,255,0.03)',
-                    color: isMicRecording ? 'var(--danger)' : 'var(--text-muted)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.3s'
-                  }}>
-                  {isTranscribing ? <div className="spin-icon" style={{ width: 20, height: 20, border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%' }} /> : isMicRecording ? <Square size={20} fill="currentColor" /> : <Mic size={20} />}
-                </button>
+              {/* Input Bar */}
+              <div style={{ marginBottom: 20, flexShrink: 0 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-faint)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6, textAlign: 'right' }}>
+                  Voice-to-Text Active
+                </div>
+                <div style={{ display: 'flex', gap: 10, background: 'var(--bg-subtle)', padding: 8, borderRadius: 16, border: '1px solid var(--border-light)', alignItems: 'center' }}>
+                  <input type="text" value={inputText} onChange={e => setInputText(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleSend()}
+                    placeholder="Type response or use microphone..."
+                    style={{ flex: 1, background: 'transparent', border: 'none', padding: '0 16px', fontSize: 15, outline: 'none', boxShadow: 'none' }} />
 
-                <button className="btn btn-primary" onClick={handleSend} style={{ width: 48, height: 48, padding: 0, borderRadius: 14 }}>
-                  <Send size={20} />
-                </button>
+                  <button onClick={toggleMic} disabled={isTranscribing}
+                    style={{
+                      width: 48, height: 48, borderRadius: 12, border: `1px solid ${isMicRecording ? 'var(--danger)' : 'var(--border-light)'}`,
+                      background: isMicRecording ? 'var(--danger-bg)' : 'var(--bg-surface)',
+                      color: isMicRecording ? 'var(--danger)' : 'var(--text-muted)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.3s', flexShrink: 0
+                    }}>
+                    {isTranscribing ? (
+                      <div style={{ width: 18, height: 18, border: '2px solid var(--text-muted)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                    ) : isMicRecording ? (
+                      <Square size={20} fill="currentColor" />
+                    ) : (
+                      <Mic size={20} />
+                    )}
+                  </button>
+
+                  <button className="btn btn-blue" onClick={handleSend} style={{ height: 48, padding: '0 20px', borderRadius: 12 }}>
+                    <Send size={18} />
+                  </button>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+              {/* Quick Replies */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid var(--border-light)', flexShrink: 0 }}>
                 {quickReplies.map(text => (
                   <button key={text} onClick={() => quickReply(text)}
-                    style={{ padding: '10px 20px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-light)', color: 'var(--text-muted)', fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: '0.2s' }}>
+                    style={{ padding: '8px 16px', borderRadius: 30, background: 'var(--bg-surface)', border: '1px solid var(--border-light)', color: 'var(--text-muted)', fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: '0.2s', fontFamily: 'var(--font-sans)' }}>
                     {text}
                   </button>
                 ))}
               </div>
-            </div>
-          </div>
 
-          {/* ══ Right Panel: Transmission Logs ══ */}
-          <div className="surface-card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ padding: '20px 28px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 12, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 2 }}>
-              <MessageSquare size={16} color="var(--primary)" /> Transmission Logs
-            </div>
-            <div style={{ flex: 1, overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {messages.length === 0 ? (
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)', fontSize: 12, textTransform: 'uppercase', letterSpacing: 2 }}>
-                  Log Empty
-                </div>
-              ) : (
-                messages.map((msg) => (
-                  <div key={msg.id} className="animate-enter" style={{
-                    padding: 20, borderRadius: 20, background: 'rgba(255,255,255,0.02)',
-                    borderLeft: `3px solid ${msg.type === 'rx' ? 'var(--accent)' : msg.type === 'tx' ? 'var(--primary)' : 'var(--text-faint)'}`
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: msg.type === 'rx' ? 'var(--accent)' : 'var(--primary)' }}>{msg.label}</span>
-                      <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{msg.time}</span>
-                    </div>
-                    <div style={{ fontSize: 15, lineHeight: 1.5 }}>{msg.text}</div>
+              {/* Event Log */}
+              <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 6, minHeight: 0 }}>
+                {messages.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '50px 20px', color: 'var(--text-faint)', fontSize: 12, fontWeight: 600, letterSpacing: 2, textTransform: 'uppercase' }}>
+                    Session Event Log Empty
                   </div>
-                ))
-              )}
-              <div ref={logEndRef} />
+                ) : (
+                  messages.map((msg) => (
+                    <div key={msg.id} className="animate-enter" style={{
+                      padding: '14px 18px', borderRadius: 12,
+                      background: msg.type === 'rx' ? 'linear-gradient(90deg, rgba(139,92,246,0.04) 0%, transparent 100%)' : msg.type === 'sys' ? 'var(--bg-subtle)' : 'var(--bg-page)',
+                      border: '1px solid transparent',
+                      borderLeft: `3px solid ${msg.type === 'rx' ? '#8B5CF6' : msg.type === 'tx' ? 'var(--accent)' : msg.text.startsWith('✓') ? 'var(--success)' : 'var(--text-faint)'}`,
+                      display: 'flex', flexDirection: 'column', gap: 5
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase',
+                          color: msg.type === 'rx' ? '#8B5CF6' : msg.type === 'tx' ? 'var(--accent)' : msg.text.startsWith('✓') ? 'var(--success)' : 'var(--text-faint)' }}>
+                          {msg.label}
+                        </span>
+                        <span style={{ fontSize: 10, color: 'var(--text-faint)', letterSpacing: 1 }}>{msg.time}</span>
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.5, color: 'var(--text-main)' }}>{msg.text}</div>
+                    </div>
+                  ))
+                )}
+                <div ref={logEndRef} />
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <style>{`
-        .badge { padding: 8px 16px; border-radius: 10px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; }
-        .badge-purple { background: rgba(139,92,246,0.1); color: #c4b5fd; border: 1px solid rgba(139,92,246,0.2); }
-        .badge-green { background: rgba(16,185,129,0.1); color: var(--success); border: 1px solid rgba(16,185,129,0.2); }
-        .spin-icon { animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

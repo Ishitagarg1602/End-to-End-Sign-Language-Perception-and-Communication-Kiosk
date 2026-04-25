@@ -3,444 +3,341 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Employee Portal | Cognitive Interface</title>
+    <title>Employee Core — Cognitive Firewall</title>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
         :root {
-            --primary: #3b82f6;
-            --primary-glow: rgba(59, 130, 246, 0.4);
-            --secondary: #1e293b;
-            --accent: #8b5cf6;
-            --bg-dark: #020617;
-            --bg-panel: rgba(15, 23, 42, 0.8);
-            --border: rgba(255, 255, 255, 0.05);
-            --text-main: #f8fafc;
-            --text-muted: #64748b;
-            --success: #10b981;
-            --danger: #ef4444;
+            --bg-deep: #050810;
+            --bg-panel: rgba(14, 20, 36, 0.6);
+            --border-glow: rgba(59, 130, 246, 0.2);
+            --border-subtle: rgba(255, 255, 255, 0.05);
+            --primary: #3B82F6;
+            --primary-glow: rgba(59, 130, 246, 0.5);
+            --accent: #8B5CF6;
+            --text-high: #F3F4F6;
+            --text-med: #9CA3AF;
+            --text-low: #4B5563;
+            --success: #10B981;
+            --danger: #EF4444;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+
         body {
-            font-family: 'Outfit', sans-serif;
-            background-color: var(--bg-dark);
-            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-deep);
+            color: var(--text-high);
             height: 100vh;
-            overflow: hidden;
             display: flex;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.05) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.05) 0px, transparent 50%);
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
         }
 
-        /* Sidebar */
+        /* Ambient Animated Background */
+        body::before {
+            content: ''; position: absolute; width: 150vw; height: 150vh; top: -25vh; left: -25vw;
+            background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.05) 0%, transparent 40%);
+            animation: ambient 20s ease-in-out infinite alternate; z-index: -1;
+        }
+        @keyframes ambient { 0% { transform: scale(1) translate(0,0); } 100% { transform: scale(1.1) translate(-2%, 2%); } }
+
+        /* Sidebar structure */
         .sidebar {
-            width: 80px;
-            background: rgba(2, 6, 23, 0.95);
-            border-right: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 24px 0;
-            gap: 32px;
-            z-index: 100;
+            width: 80px; background: rgba(5, 8, 16, 0.8); border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; align-items: center; padding: 24px 0; gap: 32px; backdrop-filter: blur(20px); z-index: 10;
         }
+        .sb-logo { width: 40px; height: 40px; background: linear-gradient(135deg, var(--primary), var(--accent)); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px var(--primary-glow); }
+        .sb-logo svg { fill: white; width: 20px; height: 20px; }
+        .sb-nav { display: flex; flex-direction: column; gap: 24px; flex: 1; }
+        .sb-icon { position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: var(--text-low); cursor: pointer; border-radius: 12px; transition: 0.3s; }
+        .sb-icon:hover { color: var(--text-high); background: rgba(255, 255, 255, 0.05); }
+        .sb-icon.active { color: var(--primary); background: rgba(59, 130, 246, 0.1); box-shadow: inset 0 0 0 1px var(--border-glow); }
+        .sb-icon svg { width: 22px; height: 22px; fill: currentColor; }
+        .sb-bottom { margin-top: auto; color: var(--text-low); display: flex; flex-direction: column; gap: 24px; padding-bottom: 12px;}
 
-        .nav-item {
-            width: 48px;
-            height: 48px;
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            color: var(--text-muted);
-            border: 1px solid transparent;
+        /* Main Workspace */
+        .workspace { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+        .header {
+            padding: 24px 40px; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(180deg, rgba(5,8,16,0.9) 0%, transparent 100%); z-index: 5;
         }
+        .hdr-title { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; background: linear-gradient(90deg, #fff, #9CA3AF); -webkit-background-clip: text; -webkit-text-fill-color: transparent;}
+        
+        .conn-pill { display: flex; align-items: center; gap: 10px; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); padding: 8px 16px; border-radius: 30px; }
+        .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: #4B5563; transition: 0.3s; }
+        .conn-dot.connected { background: var(--success); box-shadow: 0 0 12px var(--success); animation: pulse-green 2s infinite; }
+        @keyframes pulse-green { 0%{box-shadow: 0 0 0 0 rgba(16,185,129,0.4);} 70%{box-shadow: 0 0 0 6px rgba(16,185,129,0);} 100%{box-shadow: 0 0 0 0 rgba(16,185,129,0);} }
+        .conn-text { font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 700; color: var(--success); letter-spacing: 1px; text-transform: uppercase;}
 
-        .nav-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--text-main); }
-        .nav-item.active { 
-            background: rgba(59, 130, 246, 0.1); 
-            color: var(--primary); 
-            border-color: var(--primary-glow);
-            box-shadow: 0 0 15px var(--primary-glow);
-        }
+        .grid-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; padding: 0 40px 40px 40px; flex: 1; overflow: hidden; }
 
-        .nav-item svg { width: 22px; height: 22px; fill: currentColor; }
+        /* Glass Cards */
+        .card { background: var(--bg-panel); border: 1px solid var(--border-subtle); border-radius: 20px; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent); }
+        .card-hdr { padding: 20px 24px; font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 600; color: var(--text-med); letter-spacing: 1.5px; text-transform: uppercase; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; gap: 10px; }
+        .card-hdr svg { width: 16px; height: 16px; fill: var(--primary); }
+        .card-body { padding: 24px; display: flex; flex-direction: column; flex: 1; overflow-y: auto;}
 
-        /* Main Content */
-        .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            padding: 32px 40px;
-            gap: 32px;
-            overflow: hidden;
-        }
+        /* Left side elements */
+        .req-alert { background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 16px; padding: 24px; text-align: center; margin-bottom: 24px; display: none; animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 10px 40px rgba(0,0,0,0.5), inset 0 0 30px rgba(59, 130, 246, 0.05); position: relative; overflow: hidden; flex-shrink: 0;}
+        .req-alert::after { content: ''; position: absolute; top:0; left:-100%; width: 50%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent); transform: skewX(-20deg); animation: shine 3s infinite;}
+        @keyframes shine { 100% { left: 200%; } }
+        .req-alert.visible { display: block; }
+        @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        .req-title { font-family: 'Space Grotesk', sans-serif; color: var(--primary); font-size: 14px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 20px;}
+        .btn-row { display: flex; gap: 16px; justify-content: center; }
+        
+        .btn { padding: 12px 32px; border-radius: 10px; font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; border: none; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); display: inline-flex; align-items: center; gap: 10px; }
+        .btn svg { width: 16px; height: 16px; fill: currentColor; }
+        .btn-green { background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); }
+        .btn-green:hover { background: rgba(16, 185, 129, 0.2); box-shadow: 0 0 20px rgba(16, 185, 129, 0.2); transform: translateY(-2px); }
+        .btn-gray { background: transparent; color: var(--text-med); border: 1px solid var(--border-subtle); }
+        .btn-gray:hover { background: rgba(255,255,255,0.05); color: white; transform: translateY(-2px); }
+        .btn-blue { background: var(--primary); color: white; box-shadow: 0 4px 20px var(--primary-glow); }
+        .btn-blue:hover { background: #60A5FA; box-shadow: 0 6px 24px var(--primary-glow); transform: translateY(-2px); }
 
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+        .cam-feed-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.02) 0%, transparent 60%); border-radius: 16px; border: 1px dashed var(--border-subtle); position: relative;}
+        .msg-text { font-size: 42px; font-weight: 700; line-height: 1.2; letter-spacing: -1px; transition: 0.3s; }
+        .msg-text.empty { font-size: 16px; color: var(--text-low); font-weight: 500; letter-spacing: 2px; text-transform: uppercase; }
+        
+        .msg-meta { margin-top: 32px; display: inline-flex; align-items: center; gap: 16px; }
+        .badge { font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 6px 14px; border-radius: 6px; }
+        .badge-intent { background: rgba(139, 92, 246, 0.1); color: #C4B5FD; border: 1px solid rgba(139, 92, 246, 0.3); }
+        .badge-conf.hi { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+        .badge-conf.md { background: rgba(245, 158, 11, 0.1); color: #FBBF24; }
+        .timestamp { font-family: 'Space Grotesk', sans-serif; font-size: 11px; color: var(--text-low); letter-spacing: 1px; }
 
-        header h1 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 24px;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-            text-transform: uppercase;
-        }
+        /* Right side elements */
+        .terminal-input-grp { margin-bottom: 24px; position: relative; }
+        .terminal-bar { display: flex; gap: 12px; background: rgba(0,0,0,0.4); padding: 8px; border-radius: 16px; border: 1px solid var(--border-subtle); transition: 0.3s; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);}
+        .terminal-bar:focus-within { border-color: rgba(59,130,246,0.5); box-shadow: 0 0 20px rgba(59,130,246,0.1), inset 0 2px 10px rgba(0,0,0,0.5); }
+        
+        .input-field { flex: 1; background: transparent; border: none; color: white; font-family: 'Inter', sans-serif; font-size: 16px; padding: 0 20px; outline: none; }
+        .input-field::placeholder { color: var(--text-low); }
+        
+        /* Auto-Transmit Mic Button */
+        .mic-btn-wrapper { position: relative; display: flex; align-items: center; gap: 8px;}
+        .mic-auto-label { position: absolute; top: -30px; right: 0; font-family: 'Space Grotesk'; font-size: 10px; color: var(--text-low); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap;}
+        
+        .btn-mic { width: 56px; height: 56px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); color: var(--text-med); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        .btn-mic:hover { background: rgba(255,255,255,0.08); color: white; border-color: rgba(255,255,255,0.2); }
+        .btn-mic svg { width: 22px; height: 22px; fill: currentColor; }
+        
+        .btn-mic.recording { background: rgba(239,68,68,0.1); color: #FCA5A5; border-color: rgba(239,68,68,0.4); box-shadow: 0 0 20px rgba(239,68,68,0.2); }
+        .mic-waves { position: absolute; inset: 0; border-radius: 12px; border: 2px solid var(--danger); opacity: 0; pointer-events: none;}
+        .btn-mic.recording .mic-waves { animation: radar 1.5s ease-out infinite; }
+        @keyframes radar { 0%{transform:scale(1); opacity:0.8;} 100%{transform:scale(1.5); opacity:0;} }
 
-        .status-pill {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 8px 16px;
-            background: rgba(16, 185, 129, 0.05);
-            border: 1px solid rgba(16, 185, 129, 0.2);
-            border-radius: 30px;
-            font-size: 11px;
-            font-weight: 700;
-            color: var(--success);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
+        /* Quick actions */
+        .chips-container { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--border-subtle);}
+        .chip { padding: 10px 18px; border-radius: 30px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); color: var(--text-med); font-size: 13px; cursor: pointer; transition: 0.2s; font-weight: 500;}
+        .chip:hover { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.3); color: #93C5FD; transform: translateY(-1px);}
 
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); box-shadow: 0 0 10px var(--success); }
+        /* Logs */
+        .log-section { flex: 1; display: flex; flex-direction: column; overflow-y: auto; gap: 16px; padding-right: 8px;}
+        .log-item { padding: 16px 20px; border-radius: 12px; background: rgba(0,0,0,0.3); border: 1px solid transparent; border-left: 3px solid transparent; animation: slideIn 0.3s ease; display: flex; flex-direction: column; gap: 6px;}
+        .log-item.rx { border-left-color: var(--accent); background: linear-gradient(90deg, rgba(139,92,246,0.05) 0%, transparent 100%);}
+        .log-item.tx { border-left-color: var(--primary); }
+        .log-item.sys { border-left-color: var(--text-low); }
 
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 1fr 400px;
-            gap: 32px;
-            flex: 1;
-            overflow: hidden;
-        }
-
-        .glass-panel {
-            background: var(--bg-panel);
-            backdrop-filter: blur(24px);
-            border: 1px solid var(--border);
-            border-radius: 28px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-        }
-
-        .panel-header {
-            padding: 20px 28px;
-            border-bottom: 1px solid var(--border);
-            font-size: 11px;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .panel-header svg { width: 16px; height: 16px; fill: var(--primary); }
-
-        /* Incoming Message Area */
-        .message-viewport {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 40px;
-            position: relative;
-        }
-
-        .request-banner {
-            position: absolute;
-            top: 32px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(59, 130, 246, 0.1);
-            border: 1px solid var(--primary-glow);
-            padding: 24px 40px;
-            border-radius: 20px;
-            text-align: center;
-            display: none;
-            animation: slideDown 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            z-index: 50;
-        }
-
-        @keyframes slideDown { from { transform: translateX(-50%) translateY(-20px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
-
-        .request-banner.visible { display: block; }
-
-        .request-banner h3 { font-size: 14px; margin-bottom: 16px; color: var(--primary); }
-
-        .btn-group { display: flex; gap: 12px; }
-
-        .btn-action {
-            padding: 10px 24px;
-            border-radius: 12px;
-            border: none;
-            font-family: inherit;
-            font-weight: 700;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-transform: uppercase;
-        }
-
-        .btn-accept { background: var(--primary); color: white; box-shadow: 0 4px 12px var(--primary-glow); }
-        .btn-decline { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
-
-        .incoming-msg-display {
-            text-align: center;
-            transition: all 0.5s ease;
-        }
-
-        .incoming-msg-display.empty { opacity: 0.2; transform: scale(0.9); }
-
-        .big-text {
-            font-size: 56px;
-            font-weight: 800;
-            line-height: 1.1;
-            margin-bottom: 24px;
-            background: linear-gradient(135deg, #fff, var(--primary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: -2px;
-        }
-
-        .msg-info {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 16px;
-        }
-
-        .badge {
-            padding: 6px 14px;
-            border-radius: 8px;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .badge-purple { background: rgba(139, 92, 246, 0.1); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.2); }
-        .badge-green { background: rgba(16, 185, 129, 0.1); color: var(--success); }
-
-        /* Control Panel */
-        .control-panel {
-            padding: 28px;
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-        }
-
-        .input-wrapper {
-            position: relative;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 20px;
-            padding: 6px;
-            border: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-        }
-
-        .input-wrapper input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            color: white;
-            padding: 16px 20px;
-            font-family: inherit;
-            font-size: 16px;
-            outline: none;
-        }
-
-        .btn-send {
-            width: 48px;
-            height: 48px;
-            border-radius: 14px;
-            background: var(--primary);
-            border: none;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: 0.3s;
-        }
-
-        .btn-send:hover { background: #60a5fa; transform: scale(1.05); }
-        .btn-send svg { width: 20px; height: 20px; fill: white; }
-
-        .quick-replies {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .reply-chip {
-            padding: 8px 16px;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--text-muted);
-            cursor: pointer;
-            transition: 0.2s;
-        }
-
-        .reply-chip:hover { background: rgba(59, 130, 246, 0.1); border-color: var(--primary); color: white; }
-
-        .event-log {
-            flex: 1;
-            overflow-y: auto;
-            padding-right: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .log-entry {
-            padding: 16px;
-            border-radius: 18px;
-            background: rgba(255, 255, 255, 0.02);
-            border-left: 3px solid transparent;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .log-entry.rx { border-left-color: var(--accent); }
-        .log-entry.tx { border-left-color: var(--primary); }
-
-        .log-meta { font-size: 10px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
-        .log-text { font-size: 14px; line-height: 1.5; }
+        .log-hdr { display: flex; justify-content: space-between; align-items: center; }
+        .log-src { font-family: 'Space Grotesk'; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+        .log-item.rx .log-src { color: #A78BFA; }
+        .log-item.tx .log-src { color: #60A5FA; }
+        .log-item.sys .log-src { color: var(--text-low); }
+        
+        .log-time { font-family: 'Space Grotesk'; font-size: 10px; color: var(--text-low); letter-spacing: 1px;}
+        .log-msg { font-size: 15px; font-weight: 400; line-height: 1.5; color: #E5E7EB; }
+        
+        .log-empty { text-align: center; padding: 60px 20px; color: var(--text-low); font-family: 'Space Grotesk'; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
 
         ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 2px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
     </style>
 </head>
 <body>
-    <aside class="sidebar">
-        <div class="nav-item active">
-            <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+    
+    <nav class="sidebar">
+        <div class="sb-logo">
+            <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zm0 7.5L5.7 6 12 2.8 18.3 6 12 9.5zm0 11.5L2 16v-4.5l10 5 10-5V16l-10 5z"/></svg>
         </div>
-        <div class="nav-item">
-            <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        <div class="sb-nav">
+            <div class="sb-icon active">
+                <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+            </div>
+            <div class="sb-icon">
+                <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+            </div>
+            <div class="sb-icon">
+                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+            </div>
         </div>
-        <div class="nav-item">
-            <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.49-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        <div class="sb-bottom">
+            <div class="sb-icon">
+                <svg viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.73,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.49-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
+            </div>
         </div>
-    </aside>
+    </nav>
 
-    <main class="main-content">
-        <header>
-            <h1>Command Interface</h1>
-            <div class="status-pill">
-                <div class="status-dot"></div>
-                Link Secure
+    <div class="workspace">
+        <header class="header">
+            <div class="hdr-title">Cognitive Firewall Interface</div>
+            <div class="conn-pill">
+                <div class="conn-dot" id="connDot"></div>
+                <div class="conn-text" id="connText">Establishing Downlink</div>
             </div>
         </header>
 
-        <div class="dashboard-grid">
-            <div class="glass-panel">
-                <div class="panel-header">
+        <div class="grid-layout">
+            <!-- Left Panel: Video Feed Sim / Income Messages -->
+            <div class="card">
+                <div class="card-hdr">
                     <svg viewBox="0 0 24 24"><path d="M21 15V6H3v9h18m0-11a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V6c0-1.11.89-2 2-2h18M3 19h18v2H3v-2z"/></svg>
-                    Live Kiosk Transmission
+                    Kiosk Downlink
                 </div>
-                
-                <div class="message-viewport">
-                    <div class="request-banner" id="sessionRequest">
-                        <h3>Inbound Handshake Request</h3>
-                        <div class="btn-group">
-                            <button class="btn-action btn-accept" onclick="acceptSession()">Establish Link</button>
-                            <button class="btn-action btn-decline" onclick="declineSession()">Abort</button>
+                <div class="card-body">
+                    <div class="req-alert" id="sessionRequest">
+                        <div class="req-title">New Communication Request</div>
+                        <div class="btn-row">
+                            <button class="btn btn-green" onclick="acceptSession()">
+                                <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                Accept Uplink
+                            </button>
+                            <button class="btn btn-gray" onclick="declineSession()">
+                                <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                                Reject
+                            </button>
                         </div>
                     </div>
 
-                    <div class="incoming-msg-display empty" id="msgDisplay">
-                        <div class="big-text" id="messageText">AWAITING UPLINK</div>
-                        <div class="msg-info" id="messageMeta" style="display:none;">
-                            <span class="badge badge-purple" id="messageWord">SIGN</span>
-                            <span class="badge badge-green" id="messageConfidence">0%</span>
+                    <div class="cam-feed-area">
+                        <div class="msg-text empty" id="messageText">NO SIGNAL DETECTED</div>
+                        <div class="msg-meta" id="messageWordBadge" style="display:none;">
+                            <span class="badge badge-intent" id="messageWord"></span>
+                            <span class="badge badge-conf" id="messageConfidence"></span>
+                            <span class="timestamp" id="messageMeta"></span>
                         </div>
-                    </div>
-                </div>
-
-                <div class="control-panel">
-                    <div class="input-wrapper">
-                        <input type="text" id="replyInput" placeholder="Enter manual transmission data..." onkeydown="if(event.key==='Enter') sendReply()">
-                        <button class="btn-send" onclick="sendReply()">
-                            <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-                        </button>
-                    </div>
-                    <div class="quick-replies">
-                        <div class="reply-chip" onclick="quickReply('Please wait a moment')">Please Wait</div>
-                        <div class="reply-chip" onclick="quickReply('Please show your ID')">Request ID</div>
-                        <div class="reply-chip" onclick="quickReply('I have processed your request')">Completed</div>
-                        <div class="reply-chip" onclick="quickReply('Could you sign that again?')">Repeat Sign</div>
                     </div>
                 </div>
             </div>
 
-            <div class="glass-panel">
-                <div class="panel-header">
-                    <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
-                    Transmission Logs
+            <!-- Right Panel: Transmit & Data -->
+            <div class="card">
+                <div class="card-hdr">
+                    <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+                    Transmission Control
                 </div>
-                <div class="card-body" style="padding: 24px; overflow: hidden; display: flex; flex-direction: column;">
-                    <div class="event-log" id="historyList">
-                        <!-- Logs injected here -->
+                <div class="card-body">
+                    
+                    <div class="terminal-input-grp">
+                        <div class="mic-auto-label">Auto-Transmit Active</div>
+                        <div class="terminal-bar">
+                            <input type="text" class="input-field" id="replyInput" placeholder="Manual override input..." onkeydown="if(event.key==='Enter') sendReply()">
+                            <div class="mic-btn-wrapper">
+                                <button class="btn-mic" id="btnMic" onclick="toggleMic()" title="Hold/Click to Transcribe & Send">
+                                    <div class="mic-waves"></div>
+                                    <svg viewBox="0 0 24 24" id="micIcon"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                                </button>
+                                <button class="btn btn-blue" onclick="sendReply()">
+                                    <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                                </button>
+                            </div>
+                        </div>
                     </div>
+
+                    <div class="chips-container">
+                        <button class="chip" onclick="quickReply('Please wait')">Please wait</button>
+                        <button class="chip" onclick="quickReply('One moment')">One moment</button>
+                        <button class="chip" onclick="quickReply('Please show ID')">Show ID</button>
+                        <button class="chip" onclick="quickReply('Proceeding with request')">Proceeding</button>
+                        <button class="chip" onclick="quickReply('Please sign again')">Sign again</button>
+                        <button class="chip" onclick="quickReply('Your request is complete')">Completed</button>
+                    </div>
+
+                    <div class="log-section" id="historyList">
+                        <div class="log-empty" id="historyEmpty">Session Event Log Empty</div>
+                    </div>
+
                 </div>
             </div>
         </div>
-    </main>
+    </div>
 
     <script>
-        const socket = io(location.origin, { transports: ['websocket'] });
         let sessionId = null;
+        let isMicRecording = false;
+        const socket = io(window.location.origin, { transports: ['websocket', 'polling'] });
 
-        const $ = id => document.getElementById(id);
-        const msgText = $('messageText'), msgWord = $('messageWord'), msgConf = $('messageConfidence');
-        const sessionRequest = $('sessionRequest'), msgDisplay = $('msgDisplay'), historyList = $('historyList');
+        const connDot = document.getElementById('connDot');
+        const connText = document.getElementById('connText');
+        const sessionRequest = document.getElementById('sessionRequest');
+        const messageText = document.getElementById('messageText');
+        const messageWord = document.getElementById('messageWord');
+        const messageWordBadge = document.getElementById('messageWordBadge');
+        const messageConfidence = document.getElementById('messageConfidence');
+        const messageMeta = document.getElementById('messageMeta');
+        const replyInput = document.getElementById('replyInput');
+        const historyList = document.getElementById('historyList');
+        const historyEmpty = document.getElementById('historyEmpty');
+        const btnMic = document.getElementById('btnMic');
 
-        socket.on('connect', () => socket.emit('join_employee'));
+        const MIC_SVG = '<svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>';
+        const STOP_SVG = '<svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>';
+        const LOAD_SVG = '<svg viewBox="0 0 24 24"><path d="M12 2v4c4.42 0 8 3.58 8 8h4c0-6.63-5.37-12-12-12zm-8 10c0-4.42 3.58-8 8-8V0C5.37 0 0 5.37 0 12h4zm4 8c-4.42 0-8-3.58-8-8H0c0 6.63 5.37 12 12 12v-4z"/></svg>';
+
+        socket.on('connect', () => {
+            connDot.className = 'conn-dot connected';
+            connText.textContent = 'Data Link Secure';
+            socket.emit('join_employee');
+        });
+
+        socket.on('disconnect', () => {
+            connDot.className = 'conn-dot';
+            connText.textContent = 'Offline';
+        });
 
         socket.on('session_request', (data) => {
             sessionId = data.session_id;
             sessionRequest.classList.add('visible');
         });
 
-        socket.on('message_to_employee', (data) => {
-            sessionId = data.session_id;
-            msgText.textContent = `"${data.sentence}"`;
-            msgDisplay.classList.remove('empty');
-            msgWord.textContent = data.word.toUpperCase();
-            msgConf.textContent = Math.round(data.confidence * 100) + '%';
-            $('messageMeta').style.display = 'flex';
-            
-            addToLog('rx', data.sentence);
-        });
-
         socket.on('session_status', (data) => {
             if (data.status === 'ended') {
                 sessionId = null;
                 sessionRequest.classList.remove('visible');
-                msgText.textContent = 'AWAITING UPLINK';
-                msgDisplay.classList.add('empty');
-                $('messageMeta').style.display = 'none';
+                messageText.textContent = 'AWAITING UPLINK';
+                messageText.classList.add('empty');
+                messageWordBadge.style.display = 'none';
             }
+        });
+
+        socket.on('message_to_employee', (data) => {
+            sessionId = data.session_id;
+            messageText.textContent = `"${data.sentence}"`;
+            messageText.classList.remove('empty');
+            messageWord.textContent = data.word;
+            messageWordBadge.style.display = 'inline-flex';
+
+            const pct = Math.round((data.confidence || 0) * 100);
+            messageConfidence.textContent = pct + '%';
+            messageConfidence.className = 'badge badge-conf ' + (pct >= 75 ? 'hi' : 'md');
+
+            const time = new Date(data.timestamp || Date.now()).toLocaleTimeString();
+            messageMeta.textContent = time;
+
+            addToHistory('rx', data.sentence, time, 'Kiosk Uplink');
         });
 
         function acceptSession() {
             socket.emit('session_accepted', { session_id: sessionId });
             sessionRequest.classList.remove('visible');
-            addToLog('sys', 'Satellite Link Established');
+            addToHistory('sys', 'Handshake Completed', new Date().toLocaleTimeString(), 'System');
         }
 
         function declineSession() {
@@ -450,22 +347,97 @@
         }
 
         function sendReply(textOverride = null) {
-            const text = textOverride || $('replyInput').value.trim();
+            const text = textOverride || replyInput.value.trim();
             if (!text) return;
-            socket.emit('employee_reply', { session_id: sessionId, reply_text: text });
-            addToLog('tx', text);
-            $('replyInput').value = '';
+
+            socket.emit('employee_reply', {
+                session_id: sessionId,
+                reply_text: text
+            });
+
+            addToHistory('tx', text, new Date().toLocaleTimeString(), 'Transmitter');
+            replyInput.value = '';
         }
 
-        function quickReply(text) { sendReply(text); }
+        function quickReply(text) {
+            sendReply(text);
+        }
 
-        function addToLog(type, text) {
-            const entry = document.createElement('div');
-            entry.className = 'log-entry ' + type;
-            const time = new Date().toLocaleTimeString();
-            const source = type === 'rx' ? 'Incoming' : type === 'tx' ? 'Outgoing' : 'System';
-            entry.innerHTML = `<div class="log-meta">${source} • ${time}</div><div class="log-text">${text}</div>`;
-            historyList.appendChild(entry);
+        // --- Auto-Transmit Whisper Engine ---
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isTranscribing = false;
+
+        async function initMic() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0) audioChunks.push(event.data);
+                };
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    audioChunks = [];
+                    
+                    btnMic.innerHTML = '<div class="mic-waves"></div>' + LOAD_SVG;
+                    btnMic.classList.add('recording');
+                    isTranscribing = true;
+
+                    const formData = new FormData();
+                    formData.append('audio', audioBlob, 'recording.webm');
+
+                    try {
+                        const response = await fetch('/api/transcribe', { method: 'POST', body: formData });
+                        const data = await response.json();
+                        
+                        if (data.text) {
+                            // OPTION 2: Auto-Transmit Logic Instead of just pasting it
+                            // Sends directly to the kiosk instantly
+                            console.log('[Voice AI Transmitted]:', data.text);
+                            sendReply(data.text);
+                        }
+                    } catch (err) {
+                        console.error('Transcription error:', err);
+                    } finally {
+                        isTranscribing = false;
+                        btnMic.classList.remove('recording');
+                        btnMic.innerHTML = '<div class="mic-waves"></div>' + MIC_SVG;
+                    }
+                };
+            } catch (err) {
+                alert("Microphone access is missing/blocked.");
+            }
+        }
+
+        async function toggleMic() {
+            if (isTranscribing) return;
+            if (!mediaRecorder) {
+                await initMic();
+                if (!mediaRecorder) return;
+            }
+
+            isMicRecording = !isMicRecording;
+            if (isMicRecording) {
+                audioChunks = [];
+                mediaRecorder.start();
+                btnMic.classList.add('recording');
+                btnMic.innerHTML = '<div class="mic-waves"></div>' + STOP_SVG;
+            } else {
+                mediaRecorder.stop();
+            }
+        }
+
+        function addToHistory(type, text, time, label) {
+            historyEmpty.style.display = 'none';
+            const item = document.createElement('div');
+            item.className = 'log-item ' + type;
+            item.innerHTML =
+                '<div class="log-hdr">' + 
+                    '<span class="log-src">' + label + '</span>' + 
+                    '<span class="log-time">' + time + '</span>' +
+                '</div>' +
+                '<div class="log-msg">' + text + '</div>';
+            historyList.appendChild(item);
             historyList.scrollTop = historyList.scrollHeight;
         }
     </script>
