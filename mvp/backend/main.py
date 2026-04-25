@@ -83,19 +83,28 @@ def create_hand_landmarker() -> vision.HandLandmarker:
         logger.warning(f"Hand landmarker model not found at {HAND_LANDMARKER_PATH}. Attempting download...")
         download_model('https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task', HAND_LANDMARKER_PATH)
 
-    delegate = mp_tasks.BaseOptions.Delegate.GPU if torch.cuda.is_available() else mp_tasks.BaseOptions.Delegate.CPU
-    base_options = mp_tasks.BaseOptions(
-        model_asset_path=str(HAND_LANDMARKER_PATH),
-        delegate=delegate
-    )
-    options = vision.HandLandmarkerOptions(
-        base_options=base_options,
-        running_mode=vision.RunningMode.IMAGE,
-        num_hands=4,  # Detect up to 4 hands (2 people)
-        min_hand_detection_confidence=0.3,
-        min_hand_presence_confidence=0.3,
-    )
-    return vision.HandLandmarker.create_from_options(options)
+    def try_create(delegate_type):
+        base_options = mp_tasks.BaseOptions(
+            model_asset_path=str(HAND_LANDMARKER_PATH),
+            delegate=delegate_type
+        )
+        options = vision.HandLandmarkerOptions(
+            base_options=base_options,
+            running_mode=vision.RunningMode.IMAGE,
+            num_hands=4,
+            min_hand_detection_confidence=0.3,
+            min_hand_presence_confidence=0.3,
+        )
+        return vision.HandLandmarker.create_from_options(options)
+
+    try:
+        if torch.cuda.is_available():
+            return try_create(mp_tasks.BaseOptions.Delegate.GPU)
+        else:
+            return try_create(mp_tasks.BaseOptions.Delegate.CPU)
+    except Exception as e:
+        logger.warning(f"Hand Landmarker GPU init failed (or unsupported), falling back to CPU: {e}")
+        return try_create(mp_tasks.BaseOptions.Delegate.CPU)
 
 
 def create_face_landmarker() -> vision.FaceLandmarker:
@@ -103,19 +112,28 @@ def create_face_landmarker() -> vision.FaceLandmarker:
         logger.warning(f"Face landmarker model not found at {FACE_LANDMARKER_PATH}. Attempting download...")
         download_model('https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task', FACE_LANDMARKER_PATH)
 
-    delegate = mp_tasks.BaseOptions.Delegate.GPU if torch.cuda.is_available() else mp_tasks.BaseOptions.Delegate.CPU
-    base_options = mp_tasks.BaseOptions(
-        model_asset_path=str(FACE_LANDMARKER_PATH),
-        delegate=delegate
-    )
-    options = vision.FaceLandmarkerOptions(
-        base_options=base_options,
-        running_mode=vision.RunningMode.IMAGE,
-        num_faces=2,
-        min_face_detection_confidence=0.3,
-        min_face_presence_confidence=0.3,
-    )
-    return vision.FaceLandmarker.create_from_options(options)
+    def try_create(delegate_type):
+        base_options = mp_tasks.BaseOptions(
+            model_asset_path=str(FACE_LANDMARKER_PATH),
+            delegate=delegate_type
+        )
+        options = vision.FaceLandmarkerOptions(
+            base_options=base_options,
+            running_mode=vision.RunningMode.IMAGE,
+            num_faces=2,
+            min_face_detection_confidence=0.3,
+            min_face_presence_confidence=0.3,
+        )
+        return vision.FaceLandmarker.create_from_options(options)
+
+    try:
+        if torch.cuda.is_available():
+            return try_create(mp_tasks.BaseOptions.Delegate.GPU)
+        else:
+            return try_create(mp_tasks.BaseOptions.Delegate.CPU)
+    except Exception as e:
+        logger.warning(f"Face Landmarker GPU init failed, falling back to CPU: {e}")
+        return try_create(mp_tasks.BaseOptions.Delegate.CPU)
 
 
 def create_pose_landmarker() -> vision.PoseLandmarker:
@@ -123,19 +141,28 @@ def create_pose_landmarker() -> vision.PoseLandmarker:
         logger.warning(f"Pose landmarker model not found at {POSE_LANDMARKER_PATH}. Attempting download...")
         download_model('https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker/float16/latest/pose_landmarker.task', POSE_LANDMARKER_PATH)
 
-    delegate = mp_tasks.BaseOptions.Delegate.GPU if torch.cuda.is_available() else mp_tasks.BaseOptions.Delegate.CPU
-    base_options = mp_tasks.BaseOptions(
-        model_asset_path=str(POSE_LANDMARKER_PATH),
-        delegate=delegate
-    )
-    options = vision.PoseLandmarkerOptions(
-        base_options=base_options,
-        running_mode=vision.RunningMode.IMAGE,
-        num_poses=2,
-        min_pose_detection_confidence=0.3,
-        min_pose_presence_confidence=0.3,
-    )
-    return vision.PoseLandmarker.create_from_options(options)
+    def try_create(delegate_type):
+        base_options = mp_tasks.BaseOptions(
+            model_asset_path=str(POSE_LANDMARKER_PATH),
+            delegate=delegate_type
+        )
+        options = vision.PoseLandmarkerOptions(
+            base_options=base_options,
+            running_mode=vision.RunningMode.IMAGE,
+            num_poses=2,
+            min_pose_detection_confidence=0.3,
+            min_pose_presence_confidence=0.3,
+        )
+        return vision.PoseLandmarker.create_from_options(options)
+
+    try:
+        if torch.cuda.is_available():
+            return try_create(mp_tasks.BaseOptions.Delegate.GPU)
+        else:
+            return try_create(mp_tasks.BaseOptions.Delegate.CPU)
+    except Exception as e:
+        logger.warning(f"Pose Landmarker GPU init failed, falling back to CPU: {e}")
+        return try_create(mp_tasks.BaseOptions.Delegate.CPU)
 
 
 def download_model(url: str, path: Path):
