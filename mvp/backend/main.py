@@ -353,9 +353,10 @@ def load_model_and_templates():
         logger.warning("  Run: python mvp/train_model.py")
 
     try:
-        logger.info("Loading Whisper AI (base.en) onto GPU...")
-        state.whisper_model = whisper.load_model("base.en", device=state.model_device)
-        logger.info("Whisper AI loaded successfully.")
+        logger.info("Skipping Whisper AI load to save memory on free tier deployments...")
+        state.whisper_model = None
+        # state.whisper_model = whisper.load_model("base.en", device=state.model_device)
+        # logger.info("Whisper AI loaded successfully.")
     except Exception as e:
         logger.warning(f"Warning: Whisper AI failed to load: {e}")
 
