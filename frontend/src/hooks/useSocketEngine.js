@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
 const BACKEND_IP = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-const SOCKET_URL = `http://${BACKEND_IP}:8000`;
+const SOCKET_URL = import.meta.env.VITE_BACKEND_URL || `http://${BACKEND_IP}:8000`;
 
 export function useSocketEngine(role) {
   const socketRef = useRef(null);
@@ -13,6 +13,7 @@ export function useSocketEngine(role) {
   const [sessionRequest, setSessionRequest] = useState(null);
   const [sessionActive, setSessionActive] = useState(false);
   const [waitingApproval, setWaitingApproval] = useState(false);
+  const [sessionTaken, setSessionTaken] = useState(false);
 
   // Detection
   const [detectionState, setDetectionState] = useState('idle');
@@ -110,6 +111,14 @@ export function useSocketEngine(role) {
       }
     });
 
+    socket.on('session_taken', () => {
+      if (role === 'employee') {
+        setSessionTaken(true);
+        setSessionRequest(null);
+        setTimeout(() => setSessionTaken(false), 4000);
+      }
+    });
+
     socket.on('message_to_employee', (data) => {
       if (role === 'employee') {
         setSessionId(data.session_id);
@@ -150,6 +159,11 @@ export function useSocketEngine(role) {
         setMessages([]);
         setDetectionState('idle');
         setWaitingApproval(false);
+      } else if (data.status === 'claimed_elsewhere') {
+        if (role === 'employee' && !sessionActive) {
+          setSessionRequest(null);
+          setSessionId(null);
+        }
       }
     });
 
@@ -251,6 +265,7 @@ export function useSocketEngine(role) {
     sessionId,
     sessionRequest,
     sessionActive,
+    sessionTaken,
     waitingApproval,
     detectionState,
     latestSign,

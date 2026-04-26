@@ -316,6 +316,7 @@ class AppState:
         self.last_prediction_buffer: List[np.ndarray] = []
         self.last_predicted_word: Optional[str] = None
         self.session_accepted_by_employee: bool = False
+        self.assigned_employee_sid: Optional[str] = None
 
 
 state = AppState()
@@ -567,6 +568,17 @@ async def connect(sid, environ):
 async def disconnect(sid):
     state.kiosk_sids.discard(sid)
     state.employee_sids.discard(sid)
+    if state.assigned_employee_sid == sid:
+        logger.info(f"Assigned employee {sid} disconnected. Ending session.")
+        if state.current_session_id:
+            log_session_end(state.current_session_id)
+        state.detection_state = 'idle'
+        state.current_session_id = None
+        state.session_accepted_by_employee = False
+        state.assigned_employee_sid = None
+        state.user_in_zone = False
+        state.frame_buffer = []
+        await sio.emit('session_status', {'status': 'ended'}, room='kiosk')
     logger.info(f"Client disconnected: {sid}")
 
 
@@ -1105,7 +1117,8 @@ async def user_confirmed(sid, data):
         'timestamp': message['timestamp'],
         'input_mode': 'sign'
     })
-    await sio.emit('message_to_employee', message, room='employee')
+    target_room = state.assigned_employee_sid if state.assigned_employee_sid else 'employee'
+    await sio.emit('message_to_employee', message, room=target_room)
     tpl = state.templates.get(data.get('word', ''), {})
     log_message_to_db(
         session_id=data.get('session_id', state.current_session_id),
@@ -1157,7 +1170,8 @@ async def text_message(sid, data):
         'timestamp': message['timestamp'],
         'input_mode': 'text'
     })
-    await sio.emit('message_to_employee', message, room='employee')
+    target_room = state.assigned_employee_sid if state.assigned_employee_sid else 'employee'
+    await sio.emit('message_to_employee', message, room=target_room)
     log_message_to_db(
         session_id=data.get('session_id', state.current_session_id),
         direction='user_to_employee',
@@ -1248,6 +1262,7 @@ async def stop_detection(sid, data=None):
         log_session_end(state.current_session_id)
     state.current_session_id = None
     state.session_accepted_by_employee = False
+    state.assigned_employee_sid = None
     state.user_in_zone = False
     state.frame_buffer = []
     await sio.emit('detection_state', {'state': 'idle'}, room='kiosk')
@@ -1289,15 +1304,24 @@ async def session_accepted(sid, data=None):
     logger.info(f"Session accepted by employee {sid} for session {target_id}")
     
     if target_id == state.current_session_id:
+        if state.assigned_employee_sid is not None and state.assigned_employee_sid != sid:
+            logger.warning(f"Employee {sid} tried to accept session {target_id} but it is already assigned to {state.assigned_employee_sid}")
+            await sio.emit('session_taken', room=sid)
+            return
+            
+        state.assigned_employee_sid = sid
         state.session_accepted_by_employee = True
         state.detection_state = 'detecting'
         state.frame_buffer = []
         
-    # Broadcast to all to ensure delivery
-    await sio.emit('session_status', {
-        'status': 'accepted', 
-        'session_id': target_id
-    })
+    await sio.emit('session_status', {'status': 'accepted', 'session_id': target_id}, room=sid)
+    await sio.emit('session_status', {'status': 'accepted', 'session_id': target_id}, room='kiosk')
+    
+    # Notify other employees to clear the request
+    for emp_sid in state.employee_sids:
+        if emp_sid != sid:
+            await sio.emit('session_status', {'status': 'claimed_elsewhere', 'session_id': target_id}, room=emp_sid)
+            
     logger.info(f"Detection ENABLED for {target_id}")
 
 
@@ -1305,6 +1329,7 @@ async def session_accepted(sid, data=None):
 async def session_declined(sid, data=None):
     logger.info(f"Session declined by employee: {sid}")
     state.session_accepted_by_employee = False
+    state.assigned_employee_sid = None
     state.detection_state = 'idle'
     state.current_session_id = None
     state.user_in_zone = False
@@ -1315,10 +1340,11 @@ async def session_declined(sid, data=None):
 @sio.event
 async def user_acknowledged(sid, data=None):
     logger.info(f"User acknowledged employee message")
+    target_room = state.assigned_employee_sid if state.assigned_employee_sid else 'employee'
     await sio.emit('user_acknowledged', {
         'message': 'User acknowledged your message',
         'timestamp': datetime.now().isoformat()
-    }, room='employee')
+    }, room=target_room)
 
 
 @sio.event
@@ -1330,6 +1356,7 @@ async def session_ended(sid, data=None):
     state.user_in_zone = False
     state.current_session_id = None
     state.session_accepted_by_employee = False
+    state.assigned_employee_sid = None
     await sio.emit('session_status', {'status': 'ended'}, room='kiosk')
     await sio.emit('session_status', {'status': 'ended'}, room='employee')
 

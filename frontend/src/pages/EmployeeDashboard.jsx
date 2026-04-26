@@ -5,7 +5,7 @@ import { Briefcase, Mic, Square, Send, Activity, LogOut, Check, X, MessageSquare
 
 export default function EmployeeDashboard() {
   const {
-    isConnected, sessionId, sessionRequest, sessionActive,
+    isConnected, sessionId, sessionRequest, sessionActive, sessionTaken,
     messages, acceptSession, declineSession, sendReply,
     multiPersonAlert
   } = useSocketEngine('employee');
@@ -131,7 +131,7 @@ export default function EmployeeDashboard() {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 20 }}>
 
               {/* Session Request Alert */}
-              {sessionRequest && (
+              {sessionRequest && !sessionActive && !sessionTaken && (
                 <div className="animate-enter" style={{
                   background: 'var(--accent-light)', border: '1px solid rgba(37,99,235,0.3)',
                   borderRadius: 16, padding: 24, textAlign: 'center', marginBottom: 20, flexShrink: 0,
@@ -149,6 +149,22 @@ export default function EmployeeDashboard() {
                       style={{ padding: '12px 28px', fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>
                       <X size={16} /> Reject
                     </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Session Taken Alert */}
+              {sessionTaken && !sessionActive && (
+                <div className="animate-enter" style={{
+                  background: 'var(--danger-bg)', border: '1px solid rgba(220,38,38,0.3)',
+                  borderRadius: 16, padding: 24, textAlign: 'center', marginBottom: 20, flexShrink: 0,
+                  boxShadow: 'var(--shadow-lg)'
+                }}>
+                  <div style={{ color: 'var(--danger)', fontSize: 14, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 10 }}>
+                    Session Taken
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                    Another representative has already accepted this session.
                   </div>
                 </div>
               )}
