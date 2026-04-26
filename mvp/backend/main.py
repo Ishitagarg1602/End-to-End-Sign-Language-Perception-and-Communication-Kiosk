@@ -21,10 +21,6 @@ load_dotenv(Path(__file__).resolve().parent / '.env')
 import cv2
 import numpy as np
 import mediapipe as mp
-import torch
-import whisper
-import torch.nn as nn
-import torch.nn.functional as F
 from mediapipe.tasks.python import vision
 from mediapipe.tasks import python as mp_tasks
 from scipy.signal import butter, filtfilt
@@ -96,13 +92,10 @@ def create_hand_landmarker() -> vision.HandLandmarker:
         return vision.HandLandmarker.create_from_options(options)
 
     try:
-        if torch.cuda.is_available():
-            return try_create(mp_tasks.BaseOptions.Delegate.GPU)
-        else:
-            return try_create(mp_tasks.BaseOptions.Delegate.CPU)
-    except Exception as e:
-        logger.warning(f"Hand Landmarker GPU init failed (or unsupported), falling back to CPU: {e}")
         return try_create(mp_tasks.BaseOptions.Delegate.CPU)
+    except Exception as e:
+        logger.warning(f"Hand Landmarker init failed: {e}")
+        return None
 
 
 def create_face_landmarker() -> vision.FaceLandmarker:
@@ -125,13 +118,10 @@ def create_face_landmarker() -> vision.FaceLandmarker:
         return vision.FaceLandmarker.create_from_options(options)
 
     try:
-        if torch.cuda.is_available():
-            return try_create(mp_tasks.BaseOptions.Delegate.GPU)
-        else:
-            return try_create(mp_tasks.BaseOptions.Delegate.CPU)
-    except Exception as e:
-        logger.warning(f"Face Landmarker GPU init failed, falling back to CPU: {e}")
         return try_create(mp_tasks.BaseOptions.Delegate.CPU)
+    except Exception as e:
+        logger.warning(f"Face Landmarker init failed: {e}")
+        return None
 
 
 def create_pose_landmarker() -> vision.PoseLandmarker:
@@ -154,13 +144,10 @@ def create_pose_landmarker() -> vision.PoseLandmarker:
         return vision.PoseLandmarker.create_from_options(options)
 
     try:
-        if torch.cuda.is_available():
-            return try_create(mp_tasks.BaseOptions.Delegate.GPU)
-        else:
-            return try_create(mp_tasks.BaseOptions.Delegate.CPU)
-    except Exception as e:
-        logger.warning(f"Pose Landmarker GPU init failed, falling back to CPU: {e}")
         return try_create(mp_tasks.BaseOptions.Delegate.CPU)
+    except Exception as e:
+        logger.warning(f"Pose Landmarker init failed: {e}")
+        return None
 
 
 def download_model(url: str, path: Path):
@@ -554,12 +541,12 @@ async def camera_loop():
                                 options = []
                                 intent = 'general'
                                 if word in state.templates:
-                                    options = state.templates[word]
+                                    options = [state.templates[word]]
                                     intent = word
                                 else:
                                     for k, opts in state.templates.items():
                                         if word in k:
-                                            options = opts
+                                            options = [opts]
                                             intent = k
                                             break
                                             
