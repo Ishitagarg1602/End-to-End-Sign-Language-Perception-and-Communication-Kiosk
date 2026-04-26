@@ -596,6 +596,13 @@ async def join_employee(sid, data=None):
     state.employee_sids.add(sid)
     logger.info(f"Employee joined: {sid}")
     await sio.emit('status', {'message': 'Connected as employee'}, room=sid)
+    
+    # If there's an active session waiting for approval, immediately notify the new employee
+    if state.current_session_id and state.detection_state == 'waiting_approval':
+        await sio.emit('session_request',
+                      {'session_id': state.current_session_id,
+                       'timestamp': datetime.now().isoformat()},
+                      room=sid)
 
 
 @sio.event
