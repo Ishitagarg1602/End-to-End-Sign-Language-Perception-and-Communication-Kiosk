@@ -22,4 +22,4 @@ RUN pip install --no-cache-dir -r mvp/backend/requirements.txt
 EXPOSE 10000
 
 # Command to run the application
-CMD ["sh", "-c", "uvicorn mvp.backend.main:fastapi_app --host 0.0.0.0 --port ${PORT:-10000}"]
+CMD ["sh", "-c", "uvicorn mvp.backend.main:app --host 0.0.0.0 --port ${PORT:-10000}"]
