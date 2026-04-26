@@ -7,8 +7,8 @@ WORKDIR /app
 # Install system dependencies required by MediaPipe and OpenCV
 # libgles2-mesa is specifically required to fix the libGLESv2.so.2 error
 RUN apt-get update && apt-get install -y \
-    libgl1-mesa-glx \
-    libgles2-mesa \
+    libgl1 \
+    libgles2 \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
