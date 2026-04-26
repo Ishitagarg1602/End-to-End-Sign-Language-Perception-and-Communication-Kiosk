@@ -318,34 +318,20 @@ state = AppState()
 
 
 def load_model_and_templates():
-    if MODEL_PATH.exists():
-        checkpoint = torch.load(str(MODEL_PATH), map_location='cpu', weights_only=False)
-        config = checkpoint['model_config']
-        import sys
-        if str(PROJECT_ROOT) not in sys.path:
-            sys.path.insert(0, str(PROJECT_ROOT))
-        from mvp.train_model import SignLanguageModel
-        model = SignLanguageModel(
-            input_dim=config['input_dim'],
-            num_classes=config['num_classes'],
-            cnn_channels=config['cnn_channels'],
-            lstm_hidden=config['lstm_hidden'],
-            lstm_layers=config['lstm_layers'],
-            dropout=0.0,
-        )
-        model.load_state_dict(checkpoint['model_state_dict'])
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        model.to(device)
-        model.eval()
-        state.model = model
-        state.model_device = device
-        state.classes = checkpoint.get('classes', [])
-        test_acc = checkpoint.get('test_accuracy', 0)
-        logger.info(f"Loaded CNN-BiLSTM model from {MODEL_PATH} (test_acc={test_acc:.2%})")
-        logger.info(f"  Classes: {len(state.classes)}")
+    import pickle
+    model_pkl_path = BASE_DIR / 'model.pkl'
+    if model_pkl_path.exists():
+        try:
+            with open(str(model_pkl_path), 'rb') as f:
+                state.model = pickle.load(f)
+            state.model_type = 'knn'
+            logger.info(f"Loaded KNN model from {model_pkl_path}")
+        except Exception as e:
+            logger.error(f"Failed to load KNN model: {e}")
+            state.model = None
     else:
-        logger.warning(f"Model not found at {MODEL_PATH} — predictions will be disabled")
-        logger.warning("  Run: python mvp/train_model.py")
+        logger.warning(f"Model not found at {model_pkl_path} — predictions will be disabled")
+        state.model = None
 
     try:
         logger.info("Skipping Whisper AI load to save memory on free tier deployments...")
@@ -544,6 +530,55 @@ async def camera_loop():
 
                 if len(state.frame_buffer) > 60:
                     state.frame_buffer = state.frame_buffer[-60:]
+                
+                # Perform prediction if we have enough frames and model is loaded
+                if len(state.frame_buffer) >= TARGET_FRAMES and state.model is not None:
+                    if now - state.last_prediction_time > PREDICTION_INTERVAL:
+                        sequence = np.array(state.frame_buffer[-TARGET_FRAMES:])
+                        try:
+                            # Flatten for KNN: (1, 3780)
+                            flat_seq = sequence.reshape(1, -1)
+                            probas = state.model.predict_proba(flat_seq)[0]
+                            pred_idx = int(np.argmax(probas))
+                            confidence = float(probas[pred_idx])
+                            
+                            word = state.classes[pred_idx] if pred_idx < len(state.classes) else 'unknown'
+                            
+                            top3_indices = np.argsort(probas)[-3:][::-1]
+                            top3 = [{'word': state.classes[int(i)] if int(i) < len(state.classes) else '?', 
+                                     'confidence': float(probas[int(i)])} for i in top3_indices]
+                            
+                            logger.info(f"Prediction: {word} ({confidence:.2f})")
+                            
+                            if confidence >= HIGH_CONFIDENCE_THRESHOLD:
+                                options = []
+                                intent = 'general'
+                                if word in state.templates:
+                                    options = state.templates[word]
+                                    intent = word
+                                else:
+                                    for k, opts in state.templates.items():
+                                        if word in k:
+                                            options = opts
+                                            intent = k
+                                            break
+                                            
+                                await sio.emit('sign_detected', {
+                                    'session_id': state.current_session_id,
+                                    'word': word,
+                                    'confidence': confidence,
+                                    'intent': intent,
+                                    'category': 'general',
+                                    'top3': top3,
+                                    'intent_options': options
+                                }, room='kiosk')
+                                
+                                state.detection_state = 'paused'
+                                state.frame_buffer = []
+                                state.last_prediction_time = now
+                                
+                        except Exception as e:
+                            logger.error(f"Prediction error: {e}")
 
             await asyncio.sleep(0.02)
 
@@ -616,6 +651,72 @@ async def video_frame(sid, data):
             state.latest_frame = frame
         except Exception as e:
             logger.warning(f"Failed to decode incoming video stream: {e}")
+
+@sio.event
+async def session_accepted(sid, data=None):
+    state.session_accepted_by_employee = True
+    state.detection_state = 'detecting'
+    state.assigned_employee_sid = sid
+    await sio.emit('session_status', {'status': 'accepted'}, room='kiosk')
+
+@sio.event
+async def session_declined(sid, data=None):
+    state.session_accepted_by_employee = False
+    state.detection_state = 'idle'
+    state.current_session_id = None
+    state.assigned_employee_sid = None
+    await sio.emit('session_status', {'status': 'declined'}, room='kiosk')
+
+@sio.event
+async def user_confirmed(sid, data):
+    await sio.emit('message_to_employee', {
+        'session_id': data.get('session_id', ''),
+        'sentence': data.get('sentence', ''),
+        'word': data.get('word', ''),
+        'confidence': data.get('confidence', 0),
+        'timestamp': datetime.now().isoformat()
+    }, room='employee')
+    state.detection_state = 'detecting'
+
+@sio.event
+async def user_retry(sid, data=None):
+    state.detection_state = 'detecting'
+    await sio.emit('retry_ack', room='kiosk')
+
+@sio.event
+async def employee_reply(sid, data):
+    reply_text = data.get('reply_text', '')
+    await sio.emit('employee_message', {
+        'session_id': data.get('session_id', ''),
+        'reply_text': reply_text,
+        'timestamp': datetime.now().isoformat()
+    }, room='kiosk')
+    state.detection_state = 'paused'
+
+@sio.event
+async def user_acknowledged(sid, data=None):
+    state.detection_state = 'detecting'
+    await sio.emit('user_acknowledged', {'message': 'User acknowledged'}, room='employee')
+
+@sio.event
+async def stop_detection(sid, data=None):
+    state.detection_state = 'idle'
+    state.current_session_id = None
+    state.session_accepted_by_employee = False
+    state.assigned_employee_sid = None
+    await sio.emit('session_status', {'status': 'ended'}, room='employee')
+    await sio.emit('session_status', {'status': 'ended'}, room='kiosk')
+
+@sio.event
+async def text_message(sid, data):
+    await sio.emit('message_to_employee', {
+        'session_id': data.get('session_id', ''),
+        'sentence': data.get('text', ''),
+        'word': 'Text Message',
+        'confidence': 1.0,
+        'timestamp': datetime.now().isoformat()
+    }, room='employee')
+
 
 
 INTENT_ALTERNATIVES = {
