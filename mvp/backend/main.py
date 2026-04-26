@@ -78,13 +78,8 @@ def create_butterworth_filter():
 
 def create_hand_landmarker() -> vision.HandLandmarker:
     if not HAND_LANDMARKER_PATH.exists():
-        logger.error(f"Hand landmarker model not found at {HAND_LANDMARKER_PATH}")
-        logger.error("Download it with:")
-        logger.error('  python -c "import urllib.request; urllib.request.urlretrieve('
-                     "'https://storage.googleapis.com/mediapipe-models/"
-                     "hand_landmarker/hand_landmarker/float16/latest/"
-                     "hand_landmarker.task', 'models/hand_landmarker.task')\"")
-        return None
+        logger.warning(f"Hand landmarker model not found at {HAND_LANDMARKER_PATH}. Attempting download...")
+        download_model('https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task', HAND_LANDMARKER_PATH)
 
     def try_create(delegate_type):
         base_options = mp_tasks.BaseOptions(
