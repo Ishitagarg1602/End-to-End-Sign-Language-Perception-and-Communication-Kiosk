@@ -28,13 +28,10 @@ isl_env/
 node_modules/
 frontend/node_modules/
 
-# Model weights — too large for git, download separately
-*.pt
+# Model weights
+# Only ignoring large models, allowing the 3MB PyTorch model to be committed for Render
 *.pth
 models/
-mvp/model_cnn_bilstm.pt
-
-# Database
 sessions.db
 *.db
 

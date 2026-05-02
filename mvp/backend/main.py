@@ -15,6 +15,64 @@ from contextlib import asynccontextmanager
 import sqlite3
 import base64
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class Attention(nn.Module):
+    def __init__(self, hidden_dim):
+        super().__init__()
+        self.attn = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim // 2),
+            nn.Tanh(),
+            nn.Linear(hidden_dim // 2, 1)
+        )
+
+    def forward(self, lstm_out):
+        weights = self.attn(lstm_out)
+        weights = F.softmax(weights, dim=1)
+        context = torch.sum(lstm_out * weights, dim=1)
+        return context, weights.squeeze(-1)
+
+class SignLanguageModel(nn.Module):
+    def __init__(self, input_dim=126, num_classes=61,
+                 cnn_channels=128, lstm_hidden=128, lstm_layers=2, dropout=0.5):
+        super().__init__()
+        self.cnn = nn.Sequential(
+            nn.Conv1d(input_dim, 64, kernel_size=3, padding=1),
+            nn.BatchNorm1d(64),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Conv1d(64, cnn_channels, kernel_size=3, padding=1),
+            nn.BatchNorm1d(cnn_channels),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+        )
+        self.bilstm = nn.LSTM(
+            input_size=cnn_channels,
+            hidden_size=lstm_hidden,
+            num_layers=lstm_layers,
+            bidirectional=True,
+            batch_first=True,
+            dropout=dropout if lstm_layers > 1 else 0,
+        )
+        self.attention = Attention(lstm_hidden * 2)
+        self.classifier = nn.Sequential(
+            nn.Linear(lstm_hidden * 2, 128),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(128, num_classes)
+        )
+
+    def forward(self, x):
+        x = x.permute(0, 2, 1)
+        x = self.cnn(x)
+        x = x.permute(0, 2, 1)
+        lstm_out, _ = self.bilstm(x)
+        context, attn_weights = self.attention(lstm_out)
+        logits = self.classifier(context)
+        return logits
+
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parent / '.env')
 
@@ -278,7 +336,7 @@ class AppState:
     def __init__(self):
         self.model = None
         self.whisper_model = None
-        self.model_device = 'cpu'
+        self.model_device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.templates: Dict = {}
         self.classes: List[str] = []
         self.camera_running: bool = False
@@ -305,26 +363,42 @@ state = AppState()
 
 
 def load_model_and_templates():
-    import pickle
-    model_pkl_path = BASE_DIR / 'model.pkl'
-    if model_pkl_path.exists():
+    if MODEL_PATH.exists():
         try:
-            with open(str(model_pkl_path), 'rb') as f:
-                state.model = pickle.load(f)
-            state.model_type = 'knn'
-            logger.info(f"Loaded KNN model from {model_pkl_path}")
+            logger.info(f"Loading PyTorch model from {MODEL_PATH}")
+            save_data = torch.load(str(MODEL_PATH), map_location=state.model_device, weights_only=False)
+            config = save_data['model_config']
+            
+            # Initialize architecture
+            state.model = SignLanguageModel(
+                input_dim=config['input_dim'],
+                num_classes=config['num_classes'],
+                cnn_channels=config['cnn_channels'],
+                lstm_hidden=config['lstm_hidden'],
+                lstm_layers=config['lstm_layers'],
+                dropout=config.get('dropout', 0.5)
+            ).to(state.model_device)
+            
+            # Load weights
+            state.model.load_state_dict(save_data['model_state_dict'])
+            state.model.eval()
+            
+            state.model_type = 'pytorch_bilstm'
+            logger.info(f"Loaded PyTorch CNN-BiLSTM model successfully! Test Acc: {save_data.get('test_accuracy', 0)*100:.1f}%")
         except Exception as e:
-            logger.error(f"Failed to load KNN model: {e}")
+            logger.error(f"Failed to load PyTorch model: {e}")
             state.model = None
     else:
-        logger.warning(f"Model not found at {model_pkl_path} — predictions will be disabled")
+        logger.warning(f"PyTorch Model not found at {MODEL_PATH} — predictions will be disabled")
         state.model = None
 
     try:
-        logger.info("Skipping Whisper AI load to save memory on free tier deployments...")
-        state.whisper_model = None
-        # state.whisper_model = whisper.load_model("base.en", device=state.model_device)
-        # logger.info("Whisper AI loaded successfully.")
+        import whisper
+        logger.info("Loading Whisper tiny.en model (faster)...")
+        state.whisper_model = whisper.load_model("tiny.en", device=state.model_device)
+        logger.info("Whisper AI loaded successfully.")
+    except ImportError:
+        logger.warning("Whisper not installed. Voice-to-text will be disabled. Run: pip install openai-whisper")
     except Exception as e:
         logger.warning(f"Warning: Whisper AI failed to load: {e}")
 
@@ -1363,6 +1437,14 @@ async def stop_detection(sid, data=None):
 
 @sio.event
 async def employee_reply(sid, data):
+    if not state.session_accepted_by_employee:
+        logger.warning(f"Employee {sid} tried to reply without an active session.")
+        return
+        
+    if state.assigned_employee_sid and state.assigned_employee_sid != sid:
+        logger.warning(f"Employee {sid} tried to reply but session is assigned to {state.assigned_employee_sid}")
+        return
+
     logger.info(f"Employee reply: {data}")
     reply_text = data.get('reply_text', '')
 

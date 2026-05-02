@@ -22,9 +22,11 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
+import tempfile
+import os
 
 import socketio
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import HTMLResponse
 from starlette.middleware.cors import CORSMiddleware
 
@@ -49,6 +51,18 @@ session_mgr = SessionManager()
 intent_mapper = IntentMapper()
 sign_tokenizer = SignTokenizer()
 predictor = Predictor()
+
+# Load Whisper model globally (can be slow, loads on startup)
+whisper_model = None
+try:
+    import whisper
+    logger.info("Loading Whisper base.en model...")
+    whisper_model = whisper.load_model("base.en")
+    logger.info("Whisper model loaded successfully.")
+except ImportError:
+    logger.warning("Whisper not installed. Voice-to-text will be disabled. Run: pip install openai-whisper")
+except Exception as e:
+    logger.error(f"Failed to load Whisper model: {e}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -230,6 +244,30 @@ async def classes():
 async def templates():
     """Return NLP templates."""
     return {"templates": intent_mapper.templates}
+
+
+@fastapi_app.post("/api/transcribe")
+async def transcribe_audio(audio: UploadFile = File(...)):
+    """Transcribe uploaded audio file using Whisper."""
+    if whisper_model is None:
+        return {"error": "Whisper model not loaded. Please ensure openai-whisper is installed."}
+    try:
+        suffix = os.path.splitext(audio.filename)[1] if audio.filename else ".webm"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            content = await audio.read()
+            tmp.write(content)
+            tmp_path = tmp.name
+        
+        # Transcribe using Whisper
+        result = whisper_model.transcribe(tmp_path)
+        
+        # Clean up temporary file
+        os.unlink(tmp_path)
+        
+        return {"text": result.get("text", "").strip()}
+    except Exception as e:
+        logger.error(f"Transcription error: {e}")
+        return {"error": str(e)}
 
 
 # Mount Socket.IO on FastAPI
