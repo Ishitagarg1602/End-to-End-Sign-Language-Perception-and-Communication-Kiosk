@@ -1,18 +1,21 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSocketEngine } from '../hooks/useSocketEngine';
-import { Briefcase, Mic, Square, Send, Activity, LogOut, Check, X, MessageSquare } from 'lucide-react';
+import { Briefcase, Mic, Square, Send, Activity, LogOut, Check, X, MessageSquare, Clock, Power } from 'lucide-react';
 
 export default function EmployeeDashboard() {
   const {
     isConnected, sessionId, sessionRequest, sessionActive, sessionTaken,
-    messages, acceptSession, declineSession, sendReply,
-    multiPersonAlert
+    messages, acceptSession, declineSession, sendReply, endSession,
+    multiPersonAlert, API_BASE
   } = useSocketEngine('employee');
 
   const navigate = useNavigate();
   const [inputText, setInputText] = useState('');
   const logEndRef = useRef(null);
+  const [sessionStart, setSessionStart] = useState(null);
+  const [elapsed, setElapsed] = useState('0:00');
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
 
   // Mic state
   const [isMicRecording, setIsMicRecording] = useState(false);
@@ -21,6 +24,23 @@ export default function EmployeeDashboard() {
   const audioChunksRef = useRef([]);
 
   const lastKioskMsg = messages.filter(m => m.type === 'rx').slice(-1)[0];
+
+  // Session timer
+  useEffect(() => {
+    if (sessionActive && !sessionStart) setSessionStart(Date.now());
+    if (!sessionActive) { setSessionStart(null); setElapsed('0:00'); }
+  }, [sessionActive]);
+
+  useEffect(() => {
+    if (!sessionStart) return;
+    const timer = setInterval(() => {
+      const diff = Math.floor((Date.now() - sessionStart) / 1000);
+      const m = Math.floor(diff / 60);
+      const s = diff % 60;
+      setElapsed(`${m}:${s.toString().padStart(2, '0')}`);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [sessionStart]);
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -34,7 +54,12 @@ export default function EmployeeDashboard() {
 
   const quickReply = (text) => sendReply(text);
 
-  // Whisper Mic
+  const handleEndSession = () => {
+    endSession();
+    setShowEndConfirm(false);
+  };
+
+  // Whisper Mic — uses dynamic API_BASE
   const initMic = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -49,7 +74,7 @@ export default function EmployeeDashboard() {
         try {
           const form = new FormData();
           form.append('audio', blob, 'recording.webm');
-          const res = await fetch('http://localhost:8000/api/transcribe', { method: 'POST', body: form });
+          const res = await fetch(`${API_BASE}/api/transcribe`, { method: 'POST', body: form });
           const data = await res.json();
           if (data.text) sendReply(data.text);
         } catch (err) {
@@ -63,7 +88,7 @@ export default function EmployeeDashboard() {
     } catch (err) {
       alert('Microphone access denied or unavailable.');
     }
-  }, [sendReply]);
+  }, [sendReply, API_BASE]);
 
   const toggleMic = useCallback(async () => {
     if (isTranscribing) return;
@@ -82,10 +107,32 @@ export default function EmployeeDashboard() {
 
   const quickReplies = ['Please wait', 'One moment', 'Please show ID', 'Proceeding with request', 'Please sign again', 'Your request is complete'];
 
+  const getInputModeIcon = (mode) => {
+    if (mode === 'sign') return '🤟';
+    if (mode === 'text') return '⌨️';
+    if (mode === 'voice') return '🎙️';
+    return '';
+  };
+
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
 
-      {/* ── Sidebar ── */}
+      {/* End Session Confirm Dialog */}
+      {showEndConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 5000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
+          <div className="animate-enter surface-card" style={{ padding: 32, maxWidth: 380, textAlign: 'center' }}>
+            <Power size={36} style={{ color: 'var(--danger)', marginBottom: 16 }} />
+            <h3 style={{ marginBottom: 8 }}>End Session?</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>This will disconnect the kiosk user. Are you sure?</p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button className="btn" onClick={handleEndSession} style={{ background: 'var(--danger)', color: 'white', padding: '10px 28px' }}>End Session</button>
+              <button className="btn btn-secondary" onClick={() => setShowEndConfirm(false)} style={{ padding: '10px 28px' }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sidebar */}
       <nav style={{ width: 72, background: 'var(--bg-surface)', borderRight: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 0', gap: 28, flexShrink: 0 }}>
         <div style={{ width: 40, height: 40, background: 'var(--primary)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', boxShadow: 'var(--shadow-md)' }}>
           <Briefcase size={20} />
@@ -106,24 +153,38 @@ export default function EmployeeDashboard() {
         </div>
       </nav>
 
-      {/* ── Main Workspace ── */}
+      {/* Main Workspace */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* Header */}
-        <header style={{ padding: '20px 36px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)', flexShrink: 0 }}>
-          <h1 className="heading-display" style={{ fontSize: 18, letterSpacing: 0.5 }}>ISL Banking Interface</h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 16px', borderRadius: 30, background: isConnected ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${isConnected ? 'rgba(5,150,105,0.2)' : 'rgba(220,38,38,0.2)'}` }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: isConnected ? 'var(--success)' : 'var(--danger)', boxShadow: isConnected ? '0 0 10px var(--success)' : 'none' }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: isConnected ? 'var(--success)' : 'var(--danger)', letterSpacing: 1, textTransform: 'uppercase' }}>
-              {isConnected ? 'Data Link Secure' : 'Offline'}
-            </span>
+        <header style={{ padding: '16px 36px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <h1 className="heading-display" style={{ fontSize: 18, letterSpacing: 0.5 }}>ISL Banking Interface</h1>
+            {sessionActive && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 20, background: 'var(--accent-light)', color: 'var(--accent)', fontSize: 11, fontWeight: 700 }}>
+                <Clock size={12} /> {elapsed}
+              </div>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {sessionActive && (
+              <button className="btn" onClick={() => setShowEndConfirm(true)} style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid rgba(220,38,38,0.2)', padding: '6px 16px', fontSize: 11 }}>
+                <Power size={14} /> End Session
+              </button>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 16px', borderRadius: 30, background: isConnected ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${isConnected ? 'rgba(5,150,105,0.2)' : 'rgba(220,38,38,0.2)'}` }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: isConnected ? 'var(--success)' : 'var(--danger)', boxShadow: isConnected ? '0 0 10px var(--success)' : 'none' }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: isConnected ? 'var(--success)' : 'var(--danger)', letterSpacing: 1, textTransform: 'uppercase' }}>
+                {isConnected ? 'Data Link Secure' : 'Offline'}
+              </span>
+            </div>
           </div>
         </header>
 
         {/* Grid */}
         <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, padding: '24px 36px', overflow: 'hidden' }}>
 
-          {/* ══ Left Panel: Kiosk Downlink ══ */}
+          {/* Left Panel: Kiosk Downlink */}
           <div className="surface-card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>
               <MessageSquare size={14} color="var(--accent)" /> Kiosk Downlink
@@ -132,63 +193,44 @@ export default function EmployeeDashboard() {
 
               {/* Session Request Alert */}
               {sessionRequest && !sessionActive && !sessionTaken && (
-                <div className="animate-enter" style={{
-                  background: 'var(--accent-light)', border: '1px solid rgba(37,99,235,0.3)',
-                  borderRadius: 16, padding: 24, textAlign: 'center', marginBottom: 20, flexShrink: 0,
-                  boxShadow: 'var(--shadow-lg)'
-                }}>
+                <div className="animate-enter" style={{ background: 'var(--accent-light)', border: '1px solid rgba(37,99,235,0.3)', borderRadius: 16, padding: 24, textAlign: 'center', marginBottom: 20, flexShrink: 0, boxShadow: 'var(--shadow-lg)' }}>
                   <div style={{ color: 'var(--accent)', fontSize: 14, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 20 }}>
-                    New Communication Request
+                    🔔 New Communication Request
                   </div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 20 }}>A deaf user at the kiosk needs assistance.</p>
                   <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
-                    <button className="btn" onClick={acceptSession}
-                      style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid rgba(5,150,105,0.3)', padding: '12px 28px', fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>
-                      <Check size={16} /> Accept Uplink
+                    <button className="btn" onClick={acceptSession} style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid rgba(5,150,105,0.3)', padding: '12px 28px', fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>
+                      <Check size={16} /> Accept
                     </button>
-                    <button className="btn btn-secondary" onClick={declineSession}
-                      style={{ padding: '12px 28px', fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>
-                      <X size={16} /> Reject
+                    <button className="btn btn-secondary" onClick={declineSession} style={{ padding: '12px 28px', fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>
+                      <X size={16} /> Decline
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* Session Taken Alert */}
               {sessionTaken && !sessionActive && (
-                <div className="animate-enter" style={{
-                  background: 'var(--danger-bg)', border: '1px solid rgba(220,38,38,0.3)',
-                  borderRadius: 16, padding: 24, textAlign: 'center', marginBottom: 20, flexShrink: 0,
-                  boxShadow: 'var(--shadow-lg)'
-                }}>
-                  <div style={{ color: 'var(--danger)', fontSize: 14, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 10 }}>
-                    Session Taken
-                  </div>
-                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                    Another representative has already accepted this session.
-                  </div>
+                <div className="animate-enter" style={{ background: 'var(--danger-bg)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 16, padding: 24, textAlign: 'center', marginBottom: 20 }}>
+                  <div style={{ color: 'var(--danger)', fontSize: 14, fontWeight: 700, marginBottom: 10 }}>Session Taken</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Another representative accepted this session.</div>
                 </div>
               )}
 
               {/* Message Display */}
-              <div style={{
-                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                textAlign: 'center', background: 'var(--bg-page)', borderRadius: 16, border: '1px dashed var(--border-light)'
-              }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', background: 'var(--bg-page)', borderRadius: 16, border: '1px dashed var(--border-light)' }}>
                 {lastKioskMsg ? (
                   <div className="animate-enter">
-                    <div style={{ fontSize: 36, fontWeight: 700, lineHeight: 1.3, letterSpacing: -0.5, color: 'var(--text-main)', marginBottom: 28 }}>
+                    <div style={{ fontSize: 32, fontWeight: 700, lineHeight: 1.3, color: 'var(--text-main)', marginBottom: 20, padding: '0 20px' }}>
                       "{lastKioskMsg.text}"
                     </div>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
                       {lastKioskMsg.word && (
                         <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', padding: '6px 14px', borderRadius: 8, background: 'rgba(139,92,246,0.08)', color: '#7C3AED', border: '1px solid rgba(139,92,246,0.2)' }}>
-                          {lastKioskMsg.word}
+                          {getInputModeIcon(lastKioskMsg.inputMode)} {lastKioskMsg.word}
                         </span>
                       )}
                       {lastKioskMsg.conf != null && (
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: '6px 14px', borderRadius: 8,
-                          background: lastKioskMsg.conf >= 0.75 ? 'var(--success-bg)' : 'rgba(245,158,11,0.1)',
-                          color: lastKioskMsg.conf >= 0.75 ? 'var(--success)' : '#F59E0B' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: '6px 14px', borderRadius: 8, background: lastKioskMsg.conf >= 0.75 ? 'var(--success-bg)' : 'rgba(245,158,11,0.1)', color: lastKioskMsg.conf >= 0.75 ? 'var(--success)' : '#F59E0B' }}>
                           {Math.round(lastKioskMsg.conf * 100)}%
                         </span>
                       )}
@@ -197,14 +239,14 @@ export default function EmployeeDashboard() {
                   </div>
                 ) : (
                   <div style={{ fontSize: 15, color: 'var(--text-faint)', fontWeight: 500, letterSpacing: 2, textTransform: 'uppercase' }}>
-                    No Signal Detected
+                    {sessionActive ? 'Waiting for user message…' : 'No Signal Detected'}
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* ══ Right Panel: Transmission Control ══ */}
+          {/* Right Panel: Transmission Control */}
           <div className="surface-card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>
               <Send size={14} color="var(--accent)" /> Transmission Control
@@ -223,12 +265,7 @@ export default function EmployeeDashboard() {
                     style={{ flex: 1, background: 'transparent', border: 'none', padding: '0 16px', fontSize: 15, outline: 'none', boxShadow: 'none' }} />
 
                   <button onClick={toggleMic} disabled={isTranscribing}
-                    style={{
-                      width: 48, height: 48, borderRadius: 12, border: `1px solid ${isMicRecording ? 'var(--danger)' : 'var(--border-light)'}`,
-                      background: isMicRecording ? 'var(--danger-bg)' : 'var(--bg-surface)',
-                      color: isMicRecording ? 'var(--danger)' : 'var(--text-muted)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.3s', flexShrink: 0
-                    }}>
+                    style={{ width: 48, height: 48, borderRadius: 12, border: `1px solid ${isMicRecording ? 'var(--danger)' : 'var(--border-light)'}`, background: isMicRecording ? 'var(--danger-bg)' : 'var(--bg-surface)', color: isMicRecording ? 'var(--danger)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.3s', flexShrink: 0 }}>
                     {isTranscribing ? (
                       <div style={{ width: 18, height: 18, border: '2px solid var(--text-muted)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                     ) : isMicRecording ? (
@@ -270,9 +307,9 @@ export default function EmployeeDashboard() {
                       display: 'flex', flexDirection: 'column', gap: 5
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase',
+                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 4,
                           color: msg.type === 'rx' ? '#8B5CF6' : msg.type === 'tx' ? 'var(--accent)' : msg.text.startsWith('✓') ? 'var(--success)' : 'var(--text-faint)' }}>
-                          {msg.label}
+                          {msg.inputMode && getInputModeIcon(msg.inputMode)} {msg.label}
                         </span>
                         <span style={{ fontSize: 10, color: 'var(--text-faint)', letterSpacing: 1 }}>{msg.time}</span>
                       </div>

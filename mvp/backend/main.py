@@ -1,5 +1,8 @@
 
 import os
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
+
 import sys
 import json
 import uuid
@@ -99,6 +102,8 @@ MODEL_PATH = BASE_DIR / 'model_cnn_bilstm.pt'
 TEMPLATES_PATH = BASE_DIR / 'templates.json'
 CLASSES_PATH = BASE_DIR / 'splits' / 'classes.json'
 HAND_LANDMARKER_PATH = PROJECT_ROOT / 'models' / 'hand_landmarker.task'
+FACE_LANDMARKER_PATH = PROJECT_ROOT / 'models' / 'face_landmarker.task'
+POSE_LANDMARKER_PATH = PROJECT_ROOT / 'models' / 'pose_landmarker_lite.task'
 FRONTEND_DIR = BASE_DIR / 'frontend'
 FEEDBACK_DIR = PROJECT_ROOT / 'feedback'
 DB_PATH = PROJECT_ROOT / 'sessions.db'
@@ -505,8 +510,22 @@ async def camera_loop():
         state.camera_running = False
         return
 
+    # Try to initialize face detector for multi-person detection
+    face_detector = None
+    try:
+        face_detector = create_face_landmarker()
+        if face_detector:
+            logger.info("Face detector loaded — multi-person detection via face + hands")
+        else:
+            logger.info("Face detector unavailable — multi-person detection via hands only")
+    except Exception as e:
+        logger.warning(f"Face detector init skipped: {e}")
+
     DETECT_INTERVAL = 0.12
+    FACE_DETECT_INTERVAL = 0.5  # Check faces less frequently to save CPU
     last_detect_time = 0.0
+    last_face_detect_time = 0.0
+    multi_alert_cooldown = 0.0
 
     logger.info("Detection ready: Web-Stream mode (no local cv2 lock)")
 
@@ -541,9 +560,32 @@ async def camera_loop():
             if hands_visible:
                 state.last_zone_time = now
 
+            # Multi-person detection: hands > 2 OR faces > 1
+            multi_person = False
+            num_faces = 0
             if num_hands > 2:
-                await sio.emit('multi_person_alert',
-                              {'hands': num_hands}, room='kiosk')
+                multi_person = True
+
+            # Face-based multi-person check (less frequent)
+            if face_detector and now - last_face_detect_time >= FACE_DETECT_INTERVAL:
+                last_face_detect_time = now
+                try:
+                    rgb = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
+                    mp_img = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+                    face_result = face_detector.detect(mp_img)
+                    num_faces = len(face_result.face_landmarks) if face_result.face_landmarks else 0
+                    if num_faces > 1:
+                        multi_person = True
+                except Exception:
+                    pass
+
+            if multi_person and now - multi_alert_cooldown > 3.0:
+                multi_alert_cooldown = now
+                await sio.emit('multi_person_alert', {
+                    'hands': num_hands,
+                    'faces': num_faces,
+                    'message': f'Multiple people detected ({num_faces} faces, {num_hands} hands). Only one user allowed.'
+                }, room='kiosk')
                 state.frame_buffer = []
                 await asyncio.sleep(0.1)
                 continue
@@ -582,6 +624,7 @@ async def camera_loop():
                 state.user_in_zone = False
                 logger.info("User left zone (session still active).")
 
+            # Buffer frames when session is active and detecting
             if state.user_in_zone and state.detection_state == 'detecting' and state.session_accepted_by_employee:
                 if hands_visible:
                     features = wrist_centering(current_features)
@@ -592,54 +635,8 @@ async def camera_loop():
                 if len(state.frame_buffer) > 60:
                     state.frame_buffer = state.frame_buffer[-60:]
                 
-                # Perform prediction if we have enough frames and model is loaded
-                if len(state.frame_buffer) >= TARGET_FRAMES and state.model is not None:
-                    if now - state.last_prediction_time > PREDICTION_INTERVAL:
-                        sequence = np.array(state.frame_buffer[-TARGET_FRAMES:])
-                        try:
-                            # Flatten for KNN: (1, 3780)
-                            flat_seq = sequence.reshape(1, -1)
-                            probas = state.model.predict_proba(flat_seq)[0]
-                            pred_idx = int(np.argmax(probas))
-                            confidence = float(probas[pred_idx])
-                            
-                            word = state.classes[pred_idx] if pred_idx < len(state.classes) else 'unknown'
-                            
-                            top3_indices = np.argsort(probas)[-3:][::-1]
-                            top3 = [{'word': state.classes[int(i)] if int(i) < len(state.classes) else '?', 
-                                     'confidence': float(probas[int(i)])} for i in top3_indices]
-                            
-                            logger.info(f"Prediction: {word} ({confidence:.2f})")
-                            
-                            if confidence >= HIGH_CONFIDENCE_THRESHOLD:
-                                options = []
-                                intent = 'general'
-                                if word in state.templates:
-                                    options = [state.templates[word]]
-                                    intent = word
-                                else:
-                                    for k, opts in state.templates.items():
-                                        if word in k:
-                                            options = [opts]
-                                            intent = k
-                                            break
-                                            
-                                await sio.emit('sign_detected', {
-                                    'session_id': state.current_session_id,
-                                    'word': word,
-                                    'confidence': confidence,
-                                    'intent': intent,
-                                    'category': 'general',
-                                    'top3': top3,
-                                    'intent_options': options
-                                }, room='kiosk')
-                                
-                                state.detection_state = 'paused'
-                                state.frame_buffer = []
-                                state.last_prediction_time = now
-                                
-                        except Exception as e:
-                            logger.error(f"Prediction error: {e}")
+                # No auto-prediction here — user clicks "Done Signing" which triggers stop_signing event
+                # The stop_signing handler uses the correct PyTorch CNN-BiLSTM model
 
             await asyncio.sleep(0.02)
 
@@ -1059,57 +1056,111 @@ INTENT_ALTERNATIVES = {
     ],
 }
 
+# Cache for LLM-generated intents to avoid repeated API calls
+_llm_intent_cache: Dict[str, list] = {}
+
 
 def generate_intent_options(word, tpl):
-    options = INTENT_ALTERNATIVES.get(word, [])
-    if options:
-        return options
-    # Fallback: try OpenAI NLP
-    nlp_options = generate_nlp_intents(word)
-    if nlp_options:
-        return nlp_options
-    # Last resort: use template
-    if isinstance(tpl, dict):
-        options = [{'label': tpl.get('intent', word).replace('_', ' ').title(),
-                     'sentence': tpl.get('sentence', f'(Sign: {word})')}]
-    return options
+    """Generate up to 10 intent sentence options for a detected sign word.
+    
+    Priority: hardcoded alternatives → OpenAI LLM → offline fallback → template.
+    Always returns a list of {label, sentence} dicts.
+    """
+    options = list(INTENT_ALTERNATIVES.get(word, []))
+    
+    # If we already have 10, return immediately
+    if len(options) >= 10:
+        return options[:10]
+    
+    # Try OpenAI to generate more options
+    needed = 10 - len(options)
+    llm_options = generate_nlp_intents(word, count=needed)
+    if llm_options:
+        # Deduplicate by sentence
+        existing_sentences = {o['sentence'].lower().strip() for o in options}
+        for opt in llm_options:
+            if opt['sentence'].lower().strip() not in existing_sentences:
+                options.append(opt)
+                existing_sentences.add(opt['sentence'].lower().strip())
+            if len(options) >= 10:
+                break
+    
+    # If still not enough, use template as additional option
+    if len(options) < 10 and isinstance(tpl, dict) and tpl.get('sentence'):
+        tpl_sentence = tpl['sentence']
+        if tpl_sentence.lower().strip() not in {o['sentence'].lower().strip() for o in options}:
+            options.append({
+                'label': tpl.get('intent', word).replace('_', ' ').title(),
+                'sentence': tpl_sentence
+            })
+    
+    # If still nothing at all, provide generic fallback
+    if not options:
+        options = _offline_intent_fallback(word)
+    
+    return options[:10]
 
 
-def generate_nlp_intents(word: str) -> list:
-    """Use OpenAI to generate contextual banking intent options for an unknown sign word."""
-    api_key = os.environ.get('OPENAI_API_KEY', '')
-    if not api_key or api_key.startswith('sk-abcd'):
-        # Fallback to offline keyword similarity if no real key
-        return _offline_intent_fallback(word)
+def generate_nlp_intents(word: str, count: int = 10) -> list:
+    """Use Groq LLM to generate contextual banking intent sentence options."""
+    # Check cache first
+    cache_key = f"{word}_{count}"
+    if cache_key in _llm_intent_cache:
+        return _llm_intent_cache[cache_key]
+    
+    api_key = os.environ.get('GROQ_API_KEY', '')
+    if not api_key:
+        # Fallback to offline keyword similarity if no key
+        result = _offline_intent_fallback(word)
+        _llm_intent_cache[cache_key] = result
+        return result
     try:
         import httpx
         prompt = (
             f"A deaf person at a bank kiosk has signed the word '{word}' in Indian Sign Language. "
-            f"Generate exactly 3 possible banking-related intent options. "
-            f"Return ONLY a JSON array of objects with 'label' and 'sentence' keys. "
-            f"The 'sentence' should be a polite first-person banking request. "
-            f"Example: [{{\"label\": \"Check Balance\", \"sentence\": \"I want to check my account balance.\"}}]"
+            f"They are trying to communicate with a bank employee. "
+            f"Generate exactly {count} possible sentences the user might want to say. "
+            f"Cover diverse banking scenarios related to '{word}' — from simple inquiries to specific requests. "
+            f"Return ONLY a valid JSON array of objects with 'label' (short 2-4 word title) and 'sentence' (polite first-person banking request) keys. "
+            f"Make sentences natural, clear, and varied. "
+            f"Example: [{{\"label\": \"Check Balance\", \"sentence\": \"I would like to check my current account balance.\"}}]"
         )
         resp = httpx.post(
-            'https://api.openai.com/v1/chat/completions',
+            'https://api.groq.com/openai/v1/chat/completions',
             headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
-            json={'model': 'gpt-3.5-turbo', 'messages': [{'role': 'user', 'content': prompt}],
-                  'temperature': 0.7, 'max_tokens': 300},
-            timeout=8.0
+            json={
+                'model': 'llama-3.3-70b-versatile',
+                'messages': [
+                    {'role': 'system', 'content': 'You are a banking assistant that generates sentence options for deaf users communicating via sign language at a bank. Return only valid JSON.'},
+                    {'role': 'user', 'content': prompt}
+                ],
+                'temperature': 0.8,
+                'max_tokens': 800
+            },
+            timeout=10.0
         )
         data = resp.json()
         content = data['choices'][0]['message']['content'].strip()
         # Parse JSON from response
-        if content.startswith('['):
-            return json.loads(content)
-        # Try to extract JSON array from text
         import re
-        match = re.search(r'\[.*\]', content, re.DOTALL)
-        if match:
-            return json.loads(match.group())
+        result = None
+        if content.startswith('['):
+            result = json.loads(content)
+        else:
+            match = re.search(r'\[.*\]', content, re.DOTALL)
+            if match:
+                result = json.loads(match.group())
+        
+        if result and isinstance(result, list):
+            _llm_intent_cache[cache_key] = result
+            logger.info(f"OpenAI generated {len(result)} intent options for '{word}'")
+            return result
     except Exception as e:
         logger.warning(f"OpenAI intent generation failed for '{word}': {e}")
-    return _offline_intent_fallback(word)
+    
+    result = _offline_intent_fallback(word)
+    _llm_intent_cache[cache_key] = result
+    return result
 
 
 # Banking domain categories for offline fallback
@@ -1595,10 +1646,6 @@ async def api_status():
         "connected_employees": len(state.employee_sids),
     }
 
-
-@fastapi_app.get("/api/classes")
-async def api_classes():
-    return {"classes": state.classes}
 
 
 @fastapi_app.get("/api/templates")

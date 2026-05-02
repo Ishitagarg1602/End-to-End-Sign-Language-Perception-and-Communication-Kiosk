@@ -4,6 +4,9 @@ import { io } from 'socket.io-client';
 const BACKEND_IP = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 const SOCKET_URL = import.meta.env.VITE_BACKEND_URL || `http://${BACKEND_IP}:8000`;
 
+// Derive API base URL for transcription endpoint
+const API_BASE = SOCKET_URL.replace(/\/$/, '');
+
 export function useSocketEngine(role) {
   const socketRef = useRef(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -25,7 +28,7 @@ export function useSocketEngine(role) {
   const [employeeMessage, setEmployeeMessage] = useState(null);
 
   // Alerts
-  const [multiPersonAlert, setMultiPersonAlert] = useState(false);
+  const [multiPersonAlert, setMultiPersonAlert] = useState(null); // now stores the full alert data
 
   useEffect(() => {
     socketRef.current = io(SOCKET_URL, {
@@ -81,11 +84,11 @@ export function useSocketEngine(role) {
       if (role === 'kiosk') setDetectionState('scanning');
     });
 
-    socket.on('multi_person_alert', () => {
+    socket.on('multi_person_alert', (data) => {
       if (role === 'kiosk') {
-        setMultiPersonAlert(true);
+        setMultiPersonAlert(data);
         setDetectionState('paused');
-        setTimeout(() => setMultiPersonAlert(false), 2500);
+        setTimeout(() => setMultiPersonAlert(null), 3500);
       }
     });
 
@@ -98,7 +101,8 @@ export function useSocketEngine(role) {
           type: 'rx',
           text: data.reply_text,
           label: 'Bank Staff',
-          time: new Date().toLocaleTimeString()
+          time: new Date().toLocaleTimeString(),
+          inputMode: 'voice'
         }]);
       }
     });
@@ -129,7 +133,8 @@ export function useSocketEngine(role) {
           label: 'Kiosk Uplink',
           time: new Date(data.timestamp || Date.now()).toLocaleTimeString(),
           word: data.word,
-          conf: data.confidence
+          conf: data.confidence,
+          inputMode: data.input_mode || (data.word === '(typed)' ? 'text' : 'sign')
         }]);
       }
     });
@@ -159,6 +164,8 @@ export function useSocketEngine(role) {
         setMessages([]);
         setDetectionState('idle');
         setWaitingApproval(false);
+        setLatestSign(null);
+        setConfirmedWords([]);
       } else if (data.status === 'claimed_elsewhere') {
         if (role === 'employee' && !sessionActive) {
           setSessionRequest(null);
@@ -196,7 +203,8 @@ export function useSocketEngine(role) {
       socketRef.current.emit('employee_reply', { session_id: sessionId, reply_text: text });
       setMessages(prev => [...prev, {
         id: Date.now() + Math.random(), type: 'tx', text,
-        label: 'You', time: new Date().toLocaleTimeString()
+        label: 'You', time: new Date().toLocaleTimeString(),
+        inputMode: 'voice'
       }]);
     }
   }, [sessionId]);
@@ -219,7 +227,8 @@ export function useSocketEngine(role) {
       setDetectionState('scanning');
       setMessages(prev => [...prev, {
         id: Date.now() + Math.random(), type: 'tx', text: sentence,
-        label: 'You (Sign)', time: new Date().toLocaleTimeString(), word, conf: confidence
+        label: 'You (Sign)', time: new Date().toLocaleTimeString(), word, conf: confidence,
+        inputMode: 'sign'
       }]);
     }
   }, [sessionId]);
@@ -238,6 +247,8 @@ export function useSocketEngine(role) {
       setDetectionState('idle');
       setSessionActive(false);
       setWaitingApproval(false);
+      setLatestSign(null);
+      setConfirmedWords([]);
     }
   }, [sessionId]);
 
@@ -254,7 +265,8 @@ export function useSocketEngine(role) {
       socketRef.current.emit('text_message', { session_id: sessionId, text });
       setMessages(prev => [...prev, {
         id: Date.now() + Math.random(), type: 'tx', text,
-        label: 'You (Typed)', time: new Date().toLocaleTimeString()
+        label: 'You (Typed)', time: new Date().toLocaleTimeString(),
+        inputMode: 'text'
       }]);
     }
   }, [sessionId]);
@@ -282,5 +294,6 @@ export function useSocketEngine(role) {
     endSession,
     dismissEmployeeMessage,
     sendTextMessage,
+    API_BASE,
   };
 }
