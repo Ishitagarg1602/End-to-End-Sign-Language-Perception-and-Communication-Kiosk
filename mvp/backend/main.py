@@ -1596,6 +1596,8 @@ async def lifespan(app):
     logger.info("Backend shutting down.")
 
 
+from fastapi.staticfiles import StaticFiles
+
 fastapi_app = FastAPI(
     title="ISL Banking Kiosk — MVP Backend",
     description="Real-time ISL sign language recognition backend",
@@ -1611,27 +1613,26 @@ fastapi_app.add_middleware(
     allow_headers=["*"],
 )
 
+# Point to the Vite build directory
+VITE_DIST_DIR = PROJECT_ROOT / 'frontend' / 'dist'
+
+# Mount static assets if dist exists
+if (VITE_DIST_DIR / 'assets').exists():
+    fastapi_app.mount("/assets", StaticFiles(directory=VITE_DIST_DIR / 'assets'), name="assets")
 
 @fastapi_app.get("/", response_class=HTMLResponse)
-async def serve_kiosk():
-    index_path = FRONTEND_DIR / 'index.html'
+@fastapi_app.get("/login", response_class=HTMLResponse)
+@fastapi_app.get("/employee", response_class=HTMLResponse)
+@fastapi_app.get("/kiosk", response_class=HTMLResponse)
+async def serve_react_app():
+    index_path = VITE_DIST_DIR / 'index.html'
     if index_path.exists():
         return HTMLResponse(content=index_path.read_text(encoding='utf-8'))
-    return HTMLResponse(content="<h1>Kiosk UI not found. Place index.html in mvp/frontend/</h1>")
-
-
-@fastapi_app.get("/employee", response_class=HTMLResponse)
-async def serve_employee():
-    emp_path = FRONTEND_DIR / 'employee.html'
-    if emp_path.exists():
-        return HTMLResponse(content=emp_path.read_text(encoding='utf-8'))
-    return HTMLResponse(content="<h1>Employee UI not found. Place employee.html in mvp/frontend/</h1>")
-
+    return HTMLResponse(content="<h1>Vite build not found. Run 'npm run build' in the frontend directory.</h1>")
 
 @fastapi_app.get("/api/classes")
 async def get_classes():
     return {'classes': state.classes}
-
 
 @fastapi_app.get("/api/status")
 async def api_status():
@@ -1646,12 +1647,9 @@ async def api_status():
         "connected_employees": len(state.employee_sids),
     }
 
-
-
 @fastapi_app.get("/api/templates")
 async def api_templates():
     return {"templates": state.templates}
-
 
 def generate_mjpeg():
     while True:
@@ -1669,13 +1667,13 @@ def generate_mjpeg():
                 )
         time.sleep(0.033)
 
-
 @fastapi_app.get("/api/video_feed")
 async def video_feed():
     return StreamingResponse(
         generate_mjpeg(),
         media_type='multipart/x-mixed-replace; boundary=frame'
     )
+
 
 
 app = socketio.ASGIApp(sio, fastapi_app)

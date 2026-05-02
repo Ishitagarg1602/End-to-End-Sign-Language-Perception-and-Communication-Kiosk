@@ -2,7 +2,10 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
 const BACKEND_IP = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-const SOCKET_URL = import.meta.env.VITE_BACKEND_URL || `http://${BACKEND_IP}:8000`;
+// If we are served from Vite dev server (port 5173), point to backend at 8000.
+// If we are served by the backend itself (e.g. via tunnel), use the current origin.
+const isDevServer = typeof window !== 'undefined' && window.location.port === '5173';
+const SOCKET_URL = import.meta.env.VITE_BACKEND_URL || (isDevServer ? `http://${BACKEND_IP}:8000` : window.location.origin);
 
 // Derive API base URL for transcription endpoint
 const API_BASE = SOCKET_URL.replace(/\/$/, '');
