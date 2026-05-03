@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSocketEngine } from '../hooks/useSocketEngine';
-import { Briefcase, Mic, Square, Send, Activity, LogOut, Check, X, MessageSquare, Clock, Power } from 'lucide-react';
+import { Briefcase, Mic, Square, Send, Activity, LogOut, Check, X, MessageSquare, Clock, Power, FileScan } from 'lucide-react';
 
 export default function EmployeeDashboard() {
   const {
     isConnected, sessionId, sessionRequest, sessionActive, sessionTaken,
     messages, acceptSession, declineSession, sendReply, endSession,
-    multiPersonAlert, isTranscribing, sendVoiceAudio, API_BASE
+    multiPersonAlert, isTranscribing, sendVoiceAudio, API_BASE,
+    transcribedText, setTranscribedText
   } = useSocketEngine('employee');
 
   const navigate = useNavigate();
@@ -21,6 +22,15 @@ export default function EmployeeDashboard() {
   const [isMicRecording, setIsMicRecording] = useState(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
+
+  const [expandedImage, setExpandedImage] = useState(null);
+
+  useEffect(() => {
+    if (transcribedText) {
+      setInputText(prev => prev ? prev + ' ' + transcribedText : transcribedText);
+      setTranscribedText(null);
+    }
+  }, [transcribedText, setTranscribedText]);
 
   // Web Audio API Notification Sound
   const playNotificationSound = useCallback((type = 'message') => {
@@ -343,19 +353,26 @@ export default function EmployeeDashboard() {
                   messages.map((msg) => (
                     <div key={msg.id} className="animate-enter" style={{
                       padding: '14px 18px', borderRadius: 12,
-                      background: msg.type === 'rx' ? 'linear-gradient(90deg, rgba(139,92,246,0.04) 0%, transparent 100%)' : msg.type === 'sys' ? 'var(--bg-subtle)' : 'var(--bg-page)',
-                      border: '1px solid transparent',
-                      borderLeft: `3px solid ${msg.type === 'rx' ? '#8B5CF6' : msg.type === 'tx' ? 'var(--accent)' : msg.text.startsWith('✓') ? 'var(--success)' : 'var(--text-faint)'}`,
-                      display: 'flex', flexDirection: 'column', gap: 5
+                      background: msg.type === 'rx' ? 'linear-gradient(90deg, rgba(139,92,246,0.04) 0%, transparent 100%)' : msg.type === 'sys' ? 'var(--bg-subtle)' : msg.type === 'doc' ? 'rgba(59,130,246,0.05)' : 'var(--bg-page)',
+                      border: msg.type === 'doc' ? '1px solid rgba(59,130,246,0.2)' : '1px solid transparent',
+                      borderLeft: `3px solid ${msg.type === 'rx' ? '#8B5CF6' : msg.type === 'tx' ? 'var(--accent)' : msg.type === 'doc' ? '#3B82F6' : msg.text.startsWith('✓') ? 'var(--success)' : 'var(--text-faint)'}`,
+                      display: 'flex', flexDirection: 'column', gap: 8
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 4,
-                          color: msg.type === 'rx' ? '#8B5CF6' : msg.type === 'tx' ? 'var(--accent)' : msg.text.startsWith('✓') ? 'var(--success)' : 'var(--text-faint)' }}>
-                          {msg.inputMode && getInputModeIcon(msg.inputMode)} {msg.label}
+                          color: msg.type === 'rx' ? '#8B5CF6' : msg.type === 'tx' ? 'var(--accent)' : msg.type === 'doc' ? '#3B82F6' : msg.text.startsWith('✓') ? 'var(--success)' : 'var(--text-faint)' }}>
+                          {msg.type === 'doc' ? <FileScan size={12} /> : msg.inputMode ? getInputModeIcon(msg.inputMode) : null} {msg.label}
                         </span>
                         <span style={{ fontSize: 10, color: 'var(--text-faint)', letterSpacing: 1 }}>{msg.time}</span>
                       </div>
                       <div style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.5, color: 'var(--text-main)' }}>{msg.text}</div>
+                      
+                      {msg.type === 'doc' && msg.image && (
+                        <div style={{ marginTop: 8, cursor: 'pointer', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-light)' }} onClick={() => setExpandedImage(msg.image)}>
+                          <img src={msg.image} alt="Scanned Document Thumbnail" style={{ width: '100%', maxHeight: 150, objectFit: 'cover', display: 'block' }} />
+                          <div style={{ background: 'var(--bg-subtle)', padding: '6px 12px', fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', fontWeight: 600 }}>Click to expand image</div>
+                        </div>
+                      )}
                     </div>
                   ))
                 )}
@@ -367,6 +384,20 @@ export default function EmployeeDashboard() {
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      
+      {/* Expanded Image Modal */}
+      {expandedImage && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 3000, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '16px 24px', display: 'flex', justifyContent: 'flex-end' }}>
+            <button onClick={() => setExpandedImage(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <X size={24} />
+            </button>
+          </div>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, overflow: 'hidden' }}>
+            <img src={expandedImage} alt="Expanded Document" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8, boxShadow: '0 25px 50px rgba(0,0,0,0.5)' }} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

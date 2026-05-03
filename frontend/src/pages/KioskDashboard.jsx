@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, Suspense, useCallback } from 'react';
 import { useSocketEngine } from '../hooks/useSocketEngine';
-import { Camera, HandMetal, Send, RotateCcw, Square, MessageSquare, AlertTriangle, Loader2, MessageCircle, Keyboard, CheckCircle2 } from 'lucide-react';
+import { Camera, HandMetal, Send, RotateCcw, Square, MessageSquare, AlertTriangle, Loader2, MessageCircle, Keyboard, CheckCircle2, ScanLine, X } from 'lucide-react';
 import AvatarScene, { getGestureForText } from '../components/AvatarScene';
 
 export default function KioskDashboard() {
@@ -8,7 +8,7 @@ export default function KioskDashboard() {
     socket, isConnected, sessionId, sessionActive, waitingApproval,
     detectionState, latestSign, confirmedWords, messages,
     employeeMessage, multiPersonAlert,
-    stopSigning, confirmSign, retrySign, endSession, dismissEmployeeMessage, sendTextMessage
+    stopSigning, confirmSign, retrySign, endSession, dismissEmployeeMessage, sendTextMessage, scanDocument
   } = useSocketEngine('kiosk');
 
   const videoRef = useRef(null);
@@ -18,6 +18,8 @@ export default function KioskDashboard() {
   const [curSentence, setCurSentence] = useState('');
   const [typedText, setTypedText] = useState('');
   const [showTextInput, setShowTextInput] = useState(false);
+  const [scannedImage, setScannedImage] = useState(null);
+  const [showFlash, setShowFlash] = useState(false);
 
   // Typewriter effect for employee message
   const [displayedText, setDisplayedText] = useState('');
@@ -155,6 +157,22 @@ export default function KioskDashboard() {
     setShowTextInput(false);
   };
 
+  const handleCaptureDocument = () => {
+    if (canvasRef.current) {
+      const dataUrl = canvasRef.current.toDataURL('image/jpeg', 0.8);
+      setShowFlash(true);
+      setTimeout(() => setShowFlash(false), 200);
+      setScannedImage(dataUrl);
+    }
+  };
+
+  const handleSendDocument = () => {
+    if (scannedImage) {
+      scanDocument(scannedImage);
+      setScannedImage(null);
+    }
+  };
+
   // Status bar config
   const statusConfig = {
     idle: { text: 'Waiting for user…', bg: 'rgba(100,116,139,0.85)', anim: false },
@@ -245,6 +263,9 @@ export default function KioskDashboard() {
           <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', display: cameraError ? 'none' : 'block' }} />
           <canvas ref={canvasRef} style={{ display: 'none' }} />
 
+          {/* Camera Flash Effect */}
+          <div style={{ position: 'absolute', inset: 0, background: 'white', opacity: showFlash ? 0.9 : 0, transition: 'opacity 0.1s ease-out', pointerEvents: 'none', zIndex: 100 }} />
+
           {/* Status bar */}
           <div style={{ position: 'absolute', bottom: 8, left: 8, right: 8, padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, textAlign: 'center', background: status.bg, color: '#fff', animation: status.anim ? 'pulse 1.5s infinite' : 'none' }}>
             {status.text}
@@ -263,11 +284,37 @@ export default function KioskDashboard() {
           )}
         </div>
 
-        {/* Done Signing button */}
-        {sessionActive && detectionState === 'scanning' && (
-          <button className="btn" onClick={stopSigning} style={{ margin: '0 8px 8px', padding: 10, fontSize: 14, background: 'var(--danger)', color: 'white', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            <Square size={16} fill="white" /> Done Signing
-          </button>
+        {/* Document Scanner Overlay */}
+        {scannedImage && (
+          <div style={{ position: 'absolute', inset: 0, zIndex: 1000, background: '#000', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.8)' }}>
+              <div style={{ color: 'white', fontWeight: 600, fontSize: 14 }}>Document Preview</div>
+              <button onClick={() => setScannedImage(null)} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}><X size={20} /></button>
+            </div>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+              <img src={scannedImage} alt="Scanned Document" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8 }} />
+            </div>
+            <div style={{ padding: 16, display: 'flex', gap: 12, background: 'rgba(0,0,0,0.8)' }}>
+              <button onClick={handleSendDocument} style={{ flex: 1, padding: 12, background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <Send size={16} /> Send to Employee
+              </button>
+              <button onClick={() => setScannedImage(null)} style={{ flex: 1, padding: 12, background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <RotateCcw size={16} /> Retake
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Buttons */}
+        {sessionActive && detectionState === 'scanning' && !scannedImage && (
+          <div style={{ display: 'flex', gap: 8, margin: '0 8px 8px' }}>
+            <button className="btn" onClick={stopSigning} style={{ flex: 2, padding: 10, fontSize: 14, background: 'var(--danger)', color: 'white', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <Square size={16} fill="white" /> Done Signing
+            </button>
+            <button className="btn" onClick={handleCaptureDocument} style={{ flex: 1, padding: 10, fontSize: 14, background: 'var(--bg-surface)', color: 'var(--text-main)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <ScanLine size={16} /> Scan Doc
+            </button>
+          </div>
         )}
       </div>
 

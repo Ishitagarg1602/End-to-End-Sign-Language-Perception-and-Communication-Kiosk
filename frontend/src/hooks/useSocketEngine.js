@@ -33,6 +33,7 @@ export function useSocketEngine(role) {
   // Alerts & Transcriptions
   const [multiPersonAlert, setMultiPersonAlert] = useState(null); // now stores the full alert data
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcribedText, setTranscribedText] = useState(null);
 
   useEffect(() => {
     socketRef.current = io(SOCKET_URL, {
@@ -166,6 +167,19 @@ export function useSocketEngine(role) {
       }
     });
 
+    socket.on('document_received', (data) => {
+      if (role === 'employee') {
+        setMessages(prev => [...prev, {
+          id: Date.now() + Math.random(),
+          type: 'doc',
+          text: data.summary || 'Document received.',
+          image: data.image,
+          label: 'Scanned Document',
+          time: new Date(data.timestamp * 1000 || Date.now()).toLocaleTimeString()
+        }]);
+      }
+    });
+
     socket.on('voice_transcription_result', (data) => {
       if (role === 'employee') {
         setIsTranscribing(false);
@@ -173,7 +187,7 @@ export function useSocketEngine(role) {
           alert(`Transcription Error: ${data.error}`);
           console.error("Transcription error:", data.error);
         } else if (data.text) {
-          sendReply(data.text);
+          setTranscribedText(data.text);
         }
       }
     });
@@ -305,6 +319,17 @@ export function useSocketEngine(role) {
     }
   }, []);
 
+  const scanDocument = useCallback((base64Image) => {
+    if (socketRef.current && sessionId) {
+      socketRef.current.emit('document_scanned', { session_id: sessionId, image: base64Image });
+      setMessages(prev => [...prev, {
+        id: Date.now() + Math.random(), type: 'tx', text: 'Sent a scanned document.',
+        label: 'You (Document)', time: new Date().toLocaleTimeString(),
+        inputMode: 'text'
+      }]);
+    }
+  }, [sessionId]);
+
   return {
     socket: socketRef.current,
     isConnected,
@@ -320,6 +345,8 @@ export function useSocketEngine(role) {
     employeeMessage,
     multiPersonAlert,
     isTranscribing,
+    transcribedText,
+    setTranscribedText,
     acceptSession,
     declineSession,
     sendReply,
@@ -330,6 +357,7 @@ export function useSocketEngine(role) {
     dismissEmployeeMessage,
     sendTextMessage,
     sendVoiceAudio,
+    scanDocument,
     API_BASE,
   };
 }
