@@ -21,6 +21,10 @@ export function useSocketEngine(role) {
   const [waitingApproval, setWaitingApproval] = useState(false);
   const [sessionTaken, setSessionTaken] = useState(false);
 
+  // Ref so closure-based callbacks (setTimeout, socket handlers) can read latest sessionActive
+  const sessionActiveRef = useRef(false);
+  sessionActiveRef.current = sessionActive;
+
   // Detection
   const [detectionState, setDetectionState] = useState('idle');
   const [latestSign, setLatestSign] = useState(null);
@@ -104,7 +108,11 @@ export function useSocketEngine(role) {
       if (role === 'kiosk') {
         setMultiPersonAlert(data);
         setDetectionState('paused');
-        setTimeout(() => setMultiPersonAlert(null), 3500);
+        // Auto-recovery: clear alert and resume signing after timeout
+        setTimeout(() => {
+          setMultiPersonAlert(null);
+          if (sessionActiveRef.current) setDetectionState('scanning');
+        }, 3500);
       }
     });
 
@@ -332,6 +340,12 @@ export function useSocketEngine(role) {
     }
   }, [sessionId]);
 
+  // Manual resume after multi-person alert is dismissed by the user
+  const resumeAfterMultiPerson = useCallback(() => {
+    setMultiPersonAlert(null);
+    if (sessionActiveRef.current) setDetectionState('scanning');
+  }, []);
+
   return {
     socket: socketRef.current,
     isConnected,
@@ -360,6 +374,7 @@ export function useSocketEngine(role) {
     sendTextMessage,
     sendVoiceAudio,
     scanDocument,
+    resumeAfterMultiPerson,
     API_BASE,
   };
 }
