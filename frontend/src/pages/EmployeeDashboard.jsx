@@ -7,7 +7,7 @@ export default function EmployeeDashboard() {
   const {
     isConnected, sessionId, sessionRequest, sessionActive, sessionTaken,
     messages, acceptSession, declineSession, sendReply, endSession,
-    multiPersonAlert, API_BASE
+    multiPersonAlert, isTranscribing, sendVoiceAudio, API_BASE
   } = useSocketEngine('employee');
 
   const navigate = useNavigate();
@@ -19,7 +19,6 @@ export default function EmployeeDashboard() {
 
   // Mic state
   const [isMicRecording, setIsMicRecording] = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
 
@@ -124,35 +123,14 @@ export default function EmployeeDashboard() {
       recorder.onstop = async () => {
         const blob = new Blob(audioChunksRef.current, { type: options.mimeType });
         audioChunksRef.current = [];
-        setIsTranscribing(true);
-        try {
-          const form = new FormData();
-          form.append('audio', blob, 'recording.webm');
-          const res = await fetch(`${API_BASE}/api/transcribe`, { 
-            method: 'POST', 
-            body: form,
-            headers: { 'Bypass-Tunnel-Reminder': 'true' }
-          });
-          const data = await res.json();
-          if (data.text) {
-            sendReply(data.text);
-          } else if (data.error) {
-            alert(`Transcription Error: ${data.error}`);
-            console.error('Transcription error:', data.error);
-          }
-        } catch (err) {
-          console.error('Transcription error:', err);
-          alert(`Network Error: ${err.message}`);
-        } finally {
-          setIsTranscribing(false);
-          setIsMicRecording(false);
-        }
+        sendVoiceAudio(blob);
+        setIsMicRecording(false);
       };
       mediaRecorderRef.current = recorder;
     } catch (err) {
       alert('Microphone access denied or unavailable.');
     }
-  }, [sendReply, API_BASE]);
+  }, [sendVoiceAudio]);
 
   const toggleMic = useCallback(async () => {
     if (isTranscribing) return;

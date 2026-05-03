@@ -1694,23 +1694,38 @@ async def video_feed():
 
 app = socketio.ASGIApp(sio, fastapi_app)
 
-@fastapi_app.post("/api/transcribe")
-async def transcribe_audio(audio: UploadFile = File(...)):
+@sio.event
+async def transcribe_audio(sid, data):
     if state.whisper_model is None:
-        return {"error": "Whisper model not loaded"}
+        await sio.emit('voice_transcription_result', {"error": "Whisper model not loaded"}, to=sid)
+        return
     try:
+        audio_bytes = data.get('audio')
+        if not audio_bytes:
+            await sio.emit('voice_transcription_result', {"error": "No audio data received"}, to=sid)
+            return
+
         temp_file = Path(f"temp_{uuid.uuid4().hex}.webm")
         with open(temp_file, "wb") as f:
-            f.write(await audio.read())
+            f.write(audio_bytes)
         
-        result = state.whisper_model.transcribe(str(temp_file), fp16=torch.cuda.is_available())
+        # Run Whisper in background thread to avoid blocking asyncio loop
+        def run_whisper():
+            return state.whisper_model.transcribe(str(temp_file), fp16=torch.cuda.is_available())
+            
+        result = await asyncio.to_thread(run_whisper)
+        
         if temp_file.exists():
             temp_file.unlink()
             
-        return {"text": result["text"].strip()}
+        text = result["text"].strip()
+        if text:
+            await sio.emit('voice_transcription_result', {"text": text}, to=sid)
+        else:
+            await sio.emit('voice_transcription_result', {"error": "No speech detected"}, to=sid)
     except Exception as e:
-        logger.error(f"Transcription error: {e}")
-        return {"error": str(e)}
+        logger.error(f"Whisper transcription error: {e}")
+        await sio.emit('voice_transcription_result', {"error": str(e)}, to=sid)
 
 if __name__ == '__main__':
     import uvicorn

@@ -30,8 +30,9 @@ export function useSocketEngine(role) {
   const [messages, setMessages] = useState([]);
   const [employeeMessage, setEmployeeMessage] = useState(null);
 
-  // Alerts
+  // Alerts & Transcriptions
   const [multiPersonAlert, setMultiPersonAlert] = useState(null); // now stores the full alert data
+  const [isTranscribing, setIsTranscribing] = useState(false);
 
   useEffect(() => {
     socketRef.current = io(SOCKET_URL, {
@@ -165,6 +166,18 @@ export function useSocketEngine(role) {
       }
     });
 
+    socket.on('voice_transcription_result', (data) => {
+      if (role === 'employee') {
+        setIsTranscribing(false);
+        if (data.error) {
+          alert(`Transcription Error: ${data.error}`);
+          console.error("Transcription error:", data.error);
+        } else if (data.text) {
+          sendReply(data.text);
+        }
+      }
+    });
+
     socket.on('session_status', (data) => {
       if (data.status === 'accepted') {
         setSessionActive(true);
@@ -275,15 +288,22 @@ export function useSocketEngine(role) {
   }, [sessionActive, sessionId]);
 
   const sendTextMessage = useCallback((text) => {
-    if (socketRef.current && text.trim()) {
-      socketRef.current.emit('text_message', { session_id: sessionId, text });
-      setMessages(prev => [...prev, {
-        id: Date.now() + Math.random(), type: 'tx', text,
-        label: 'You (Typed)', time: new Date().toLocaleTimeString(),
-        inputMode: 'text'
-      }]);
+      if (socketRef.current && text.trim()) {
+        socketRef.current.emit('text_message', { session_id: sessionId, text });
+        setMessages(prev => [...prev, {
+          id: Date.now() + Math.random(), type: 'tx', text,
+          label: 'You (Typed)', time: new Date().toLocaleTimeString(),
+          inputMode: 'text'
+        }]);
+      }
+    }, [sessionId]);
+
+  const sendVoiceAudio = useCallback((blob) => {
+    if (socketRef.current) {
+      setIsTranscribing(true);
+      socketRef.current.emit('transcribe_audio', { audio: blob });
     }
-  }, [sessionId]);
+  }, []);
 
   return {
     socket: socketRef.current,
@@ -299,6 +319,7 @@ export function useSocketEngine(role) {
     messages,
     employeeMessage,
     multiPersonAlert,
+    isTranscribing,
     acceptSession,
     declineSession,
     sendReply,
@@ -308,6 +329,7 @@ export function useSocketEngine(role) {
     endSession,
     dismissEmployeeMessage,
     sendTextMessage,
+    sendVoiceAudio,
     API_BASE,
   };
 }
