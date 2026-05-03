@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, Suspense } from 'react';
+import React, { useEffect, useState, useRef, Suspense, useCallback } from 'react';
 import { useSocketEngine } from '../hooks/useSocketEngine';
 import { Camera, HandMetal, Send, RotateCcw, Square, MessageSquare, AlertTriangle, Loader2, MessageCircle, Keyboard, CheckCircle2 } from 'lucide-react';
 import AvatarScene, { getGestureForText } from '../components/AvatarScene';
@@ -80,9 +80,33 @@ export default function KioskDashboard() {
     }
   }, [latestSign]);
 
+  // Web Audio API Notification Sound
+  const playNotificationSound = useCallback(() => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+      osc.frequency.exponentialRampToValueAtTime(659.25, ctx.currentTime + 0.1); // E5
+      gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.3);
+    } catch (e) {
+      console.warn("Audio context failed:", e);
+    }
+  }, []);
+
   // Typewriter effect
   useEffect(() => {
     if (employeeMessage) {
+      playNotificationSound();
       setDisplayedText('');
       setTypewriterDone(false);
       let i = 0;
@@ -97,7 +121,7 @@ export default function KioskDashboard() {
       }, 35);
       return () => clearInterval(interval);
     }
-  }, [employeeMessage]);
+  }, [employeeMessage, playNotificationSound]);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -268,23 +292,30 @@ export default function KioskDashboard() {
                 </span>
               </div>
 
-              {/* Scrollable intent options (up to 10) */}
-              {latestSign.intent_options?.length > 0 && (
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 }}>
-                    Select what you want to say ({latestSign.intent_options.length} options)
+              {/* Intent Options */}
+              {latestSign.intent_options && (
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>
+                    {latestSign.intent_options.length === 0 ? 'Generating options...' : `Select what you want to say (${latestSign.intent_options.length} options)`}
                   </div>
                   <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    {latestSign.intent_options.map((opt, idx) => (
-                      <button key={idx} onClick={() => handleIntentSelect(opt)}
-                        style={{ display: 'block', width: '100%', padding: '8px 12px', borderRadius: 8, textAlign: 'left',
-                          border: selectedIntent?.label === opt.label ? '2px solid var(--accent)' : '1px solid var(--border-light)',
-                          background: selectedIntent?.label === opt.label ? 'var(--accent-light)' : 'var(--bg-surface)',
-                          color: 'var(--text-main)', fontFamily: 'var(--font-sans)', fontSize: 12, cursor: 'pointer', transition: '0.15s' }}>
-                        <span style={{ fontWeight: 700, color: 'var(--accent)', fontSize: 10, textTransform: 'uppercase' }}>{opt.label}</span>
-                        <br />{opt.sentence}
-                      </button>
-                    ))}
+                    {latestSign.intent_options.length === 0 ? (
+                      <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, background: 'var(--bg-surface)', borderRadius: 8, border: '1px solid var(--border-light)' }}>
+                        <Loader2 className="spin-icon" size={20} style={{ margin: '0 auto 8px auto', color: 'var(--accent)' }} />
+                        Analyzing sign and generating smart options...
+                      </div>
+                    ) : (
+                      latestSign.intent_options.map((opt, idx) => (
+                        <button key={idx} onClick={() => handleIntentSelect(opt)}
+                          style={{ display: 'block', width: '100%', padding: '8px 12px', borderRadius: 8, textAlign: 'left',
+                            border: selectedIntent?.label === opt.label ? '2px solid var(--accent)' : '1px solid var(--border-light)',
+                            background: selectedIntent?.label === opt.label ? 'var(--accent-light)' : 'var(--bg-surface)',
+                            color: 'var(--text-main)', fontFamily: 'var(--font-sans)', fontSize: 12, cursor: 'pointer', transition: '0.15s' }}>
+                          <span style={{ fontWeight: 700, color: 'var(--accent)', fontSize: 10, textTransform: 'uppercase' }}>{opt.label}</span>
+                          <br />{opt.sentence}
+                        </button>
+                      ))
+                    )}
                   </div>
                 </div>
               )}

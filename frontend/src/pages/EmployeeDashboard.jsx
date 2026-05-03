@@ -23,7 +23,53 @@ export default function EmployeeDashboard() {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
 
+  // Web Audio API Notification Sound
+  const playNotificationSound = useCallback((type = 'message') => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      if (type === 'message') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+        osc.frequency.exponentialRampToValueAtTime(659.25, ctx.currentTime + 0.1); // E5
+        gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.3);
+      } else if (type === 'alert') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(440, ctx.currentTime); // A4
+        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1); // A5
+        gainNode.gain.setValueAtTime(0.4, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.4);
+      }
+    } catch (e) {
+      console.warn("Audio context failed:", e);
+    }
+  }, []);
+
   const lastKioskMsg = messages.filter(m => m.type === 'rx').slice(-1)[0];
+
+  // Sound triggers
+  useEffect(() => {
+    if (sessionRequest) playNotificationSound('alert');
+  }, [sessionRequest, playNotificationSound]);
+
+  useEffect(() => {
+    if (sessionActive) playNotificationSound('message');
+  }, [sessionActive, playNotificationSound]);
+
+  useEffect(() => {
+    if (lastKioskMsg) playNotificationSound('message');
+  }, [lastKioskMsg, playNotificationSound]);
 
   // Session timer
   useEffect(() => {
@@ -63,22 +109,40 @@ export default function EmployeeDashboard() {
   const initMic = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      
+      let options = { mimeType: 'audio/webm' };
+      if (typeof MediaRecorder !== 'undefined') {
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+          options = { mimeType: 'audio/webm;codecs=opus' };
+        }
+      }
+      
+      const recorder = new MediaRecorder(stream, options);
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) audioChunksRef.current.push(e.data);
       };
       recorder.onstop = async () => {
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const blob = new Blob(audioChunksRef.current, { type: options.mimeType });
         audioChunksRef.current = [];
         setIsTranscribing(true);
         try {
           const form = new FormData();
           form.append('audio', blob, 'recording.webm');
-          const res = await fetch(`${API_BASE}/api/transcribe`, { method: 'POST', body: form });
+          const res = await fetch(`${API_BASE}/api/transcribe`, { 
+            method: 'POST', 
+            body: form,
+            headers: { 'Bypass-Tunnel-Reminder': 'true' }
+          });
           const data = await res.json();
-          if (data.text) sendReply(data.text);
+          if (data.text) {
+            sendReply(data.text);
+          } else if (data.error) {
+            alert(`Transcription Error: ${data.error}`);
+            console.error('Transcription error:', data.error);
+          }
         } catch (err) {
           console.error('Transcription error:', err);
+          alert(`Network Error: ${err.message}`);
         } finally {
           setIsTranscribing(false);
           setIsMicRecording(false);

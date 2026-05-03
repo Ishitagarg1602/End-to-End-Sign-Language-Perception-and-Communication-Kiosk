@@ -1060,7 +1060,7 @@ INTENT_ALTERNATIVES = {
 _llm_intent_cache: Dict[str, list] = {}
 
 
-def generate_intent_options(word, tpl):
+async def generate_intent_options(word, tpl):
     """Generate up to 10 intent sentence options for a detected sign word.
     
     Priority: hardcoded alternatives → OpenAI LLM → offline fallback → template.
@@ -1074,7 +1074,7 @@ def generate_intent_options(word, tpl):
     
     # Try OpenAI to generate more options
     needed = 10 - len(options)
-    llm_options = generate_nlp_intents(word, count=needed)
+    llm_options = await generate_nlp_intents(word, count=needed)
     if llm_options:
         # Deduplicate by sentence
         existing_sentences = {o['sentence'].lower().strip() for o in options}
@@ -1101,7 +1101,7 @@ def generate_intent_options(word, tpl):
     return options[:10]
 
 
-def generate_nlp_intents(word: str, count: int = 10) -> list:
+async def generate_nlp_intents(word: str, count: int = 10) -> list:
     """Use Groq LLM to generate contextual banking intent sentence options."""
     # Check cache first
     cache_key = f"{word}_{count}"
@@ -1119,26 +1119,28 @@ def generate_nlp_intents(word: str, count: int = 10) -> list:
         prompt = (
             f"A deaf person at a bank kiosk has signed the word '{word}' in Indian Sign Language. "
             f"They are trying to communicate with a bank employee. "
-            f"Generate exactly {count} possible sentences the user might want to say. "
-            f"Cover diverse banking scenarios related to '{word}' — from simple inquiries to specific requests. "
+            f"Generate exactly {count} highly specific, realistic, and complex banking issues or requests related to the word '{word}'. "
+            f"Do not generate simple definitions or basic statements. Focus on actual problems a customer might face. "
+            f"For example, if the word is 'mortgages', include issues like 'My mortgage payment failed to process', 'I need to refinance my current mortgage', 'Why did my mortgage interest rate increase?', etc. "
             f"Return ONLY a valid JSON array of objects with 'label' (short 2-4 word title) and 'sentence' (polite first-person banking request) keys. "
             f"Make sentences natural, clear, and varied. "
-            f"Example: [{{\"label\": \"Check Balance\", \"sentence\": \"I would like to check my current account balance.\"}}]"
+            f"Example: [{{\"label\": \"Payment Failed\", \"sentence\": \"My recent mortgage payment failed to process, can you help me check why?\"}}]"
         )
-        resp = httpx.post(
-            'https://api.groq.com/openai/v1/chat/completions',
-            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
-            json={
-                'model': 'llama-3.3-70b-versatile',
-                'messages': [
-                    {'role': 'system', 'content': 'You are a banking assistant that generates sentence options for deaf users communicating via sign language at a bank. Return only valid JSON.'},
-                    {'role': 'user', 'content': prompt}
-                ],
-                'temperature': 0.8,
-                'max_tokens': 800
-            },
-            timeout=10.0
-        )
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                'https://api.groq.com/openai/v1/chat/completions',
+                headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+                json={
+                    'model': 'llama-3.3-70b-versatile',
+                    'messages': [
+                        {'role': 'system', 'content': 'You are a banking assistant that generates sentence options for deaf users communicating via sign language at a bank. Return only valid JSON.'},
+                        {'role': 'user', 'content': prompt}
+                    ],
+                    'temperature': 0.8,
+                    'max_tokens': 800
+                },
+                timeout=10.0
+            )
         data = resp.json()
         content = data['choices'][0]['message']['content'].strip()
         # Parse JSON from response
@@ -1284,8 +1286,6 @@ async def stop_signing(sid, data=None):
         intent = 'unknown'
         category = 'general'
 
-    intent_options = generate_intent_options(word, tpl)
-
     top3_indices = np.argsort(probas)[-3:][::-1]
     top3 = [
         {
@@ -1295,6 +1295,7 @@ async def stop_signing(sid, data=None):
         for i in top3_indices
     ]
 
+    # Instant payload with empty intents to update UI immediately
     payload = {
         'word': word,
         'sentence': sentence,
@@ -1302,11 +1303,26 @@ async def stop_signing(sid, data=None):
         'category': category,
         'confidence': round(confidence, 4),
         'top3': top3,
-        'intent_options': intent_options,
+        'intent_options': [], # Empty initially
         'session_id': state.current_session_id
     }
     await sio.emit('sign_detected', payload, room='kiosk')
-    logger.info(f"Sign: {word} ({confidence:.2%}) | Intent: {intent}")
+    logger.info(f"Sign instantly detected: {word} ({confidence:.2%})")
+
+    # Background task to fetch intents from LLM
+    async def fetch_intents_task(w, t, sess_id):
+        try:
+            options = await generate_intent_options(w, t)
+            await sio.emit('intent_options_ready', {
+                'word': w,
+                'intent_options': options,
+                'session_id': sess_id
+            }, room='kiosk')
+            logger.info(f"Background intents fetched for {w}: {len(options)} options")
+        except Exception as e:
+            logger.error(f"Error fetching intents in background: {e}")
+
+    asyncio.create_task(fetch_intents_task(word, tpl, state.current_session_id))
 
     state.last_prediction_buffer = [f.copy() for f in raw]
     state.last_predicted_word = word
@@ -1683,7 +1699,7 @@ async def transcribe_audio(audio: UploadFile = File(...)):
     if state.whisper_model is None:
         return {"error": "Whisper model not loaded"}
     try:
-        temp_file = Path("temp_recording.webm")
+        temp_file = Path(f"temp_{uuid.uuid4().hex}.webm")
         with open(temp_file, "wb") as f:
             f.write(await audio.read())
         

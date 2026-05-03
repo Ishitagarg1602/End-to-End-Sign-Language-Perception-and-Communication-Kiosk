@@ -71,6 +71,17 @@ export function useSocketEngine(role) {
       }
     });
 
+    socket.on('intent_options_ready', (data) => {
+      if (role === 'kiosk') {
+        setLatestSign(prev => {
+          if (prev && prev.word === data.word) {
+            return { ...prev, intent_options: data.intent_options };
+          }
+          return prev;
+        });
+      }
+    });
+
     socket.on('prediction_error', (data) => {
       if (role === 'kiosk') {
         setDetectionState('scanning');
