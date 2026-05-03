@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSocketEngine } from '../hooks/useSocketEngine';
-import { Briefcase, Mic, Square, Send, Activity, LogOut, Check, X, MessageSquare, Clock, Power, FileScan } from 'lucide-react';
+import { Briefcase, Mic, Square, Send, Activity, LogOut, Check, X, MessageSquare, Clock, Power, FileScan, Download, FileText } from 'lucide-react';
 
 export default function EmployeeDashboard() {
   const {
@@ -17,6 +17,9 @@ export default function EmployeeDashboard() {
   const [sessionStart, setSessionStart] = useState(null);
   const [elapsed, setElapsed] = useState('0:00');
   const [showEndConfirm, setShowEndConfirm] = useState(false);
+  const [showTranscriptBtn, setShowTranscriptBtn] = useState(false);
+  const sessionMessagesRef = useRef([]);
+  const sessionMetaRef = useRef({});
 
   // Mic state
   const [isMicRecording, setIsMicRecording] = useState(false);
@@ -80,10 +83,20 @@ export default function EmployeeDashboard() {
     if (lastKioskMsg) playNotificationSound('message');
   }, [lastKioskMsg, playNotificationSound]);
 
-  // Session timer
   useEffect(() => {
-    if (sessionActive && !sessionStart) setSessionStart(Date.now());
-    if (!sessionActive) { setSessionStart(null); setElapsed('0:00'); }
+    if (sessionActive && !sessionStart) {
+      setSessionStart(Date.now());
+      setShowTranscriptBtn(false);
+      sessionMetaRef.current = { startTime: new Date().toISOString(), sessionId: sessionId };
+    }
+    if (!sessionActive && sessionStart) {
+      sessionMetaRef.current.endTime = new Date().toISOString();
+      sessionMetaRef.current.duration = elapsed;
+      sessionMessagesRef.current = [...messages];
+      if (messages.length > 0) setShowTranscriptBtn(true);
+      setSessionStart(null);
+      setElapsed('0:00');
+    }
   }, [sessionActive]);
 
   useEffect(() => {
@@ -112,6 +125,80 @@ export default function EmployeeDashboard() {
   const handleEndSession = () => {
     endSession();
     setShowEndConfirm(false);
+  };
+
+  const generateTranscript = () => {
+    const meta = sessionMetaRef.current;
+    const msgs = sessionMessagesRef.current;
+    const startDate = meta.startTime ? new Date(meta.startTime) : new Date();
+    const rows = msgs.map(msg => {
+      const direction = msg.type === 'rx' ? 'KIOSK USER' : msg.type === 'tx' ? 'EMPLOYEE' : msg.type === 'doc' ? 'DOCUMENT SCAN' : 'SYSTEM';
+      const mode = msg.inputMode === 'sign' ? 'Sign Language' : msg.inputMode === 'voice' ? 'Voice' : msg.inputMode === 'text' ? 'Keyboard' : msg.type === 'doc' ? 'Camera Scan' : '-';
+      return `<tr>
+        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#6b7280;white-space:nowrap;">${msg.time || '-'}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;font-weight:600;color:${msg.type === 'rx' ? '#7c3aed' : msg.type === 'tx' ? '#2563eb' : msg.type === 'doc' ? '#0369a1' : '#6b7280'};white-space:nowrap;">${direction}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#6b7280;white-space:nowrap;">${mode}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:13px;color:#111827;">${msg.text || '-'}</td>
+      </tr>`;
+    }).join('');
+
+    const docScans = msgs.filter(m => m.type === 'doc' && m.images && m.images.length > 0);
+    const docSection = docScans.length > 0 ? `
+      <div style="margin-top:32px;">
+        <h2 style="font-size:14px;font-weight:700;color:#111827;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #111827;">Appendix: Scanned Documents</h2>
+        ${docScans.map((d, di) => `
+          <div style="margin-bottom:16px;">
+            <p style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;">Document Set ${di + 1} - ${d.time}</p>
+            <p style="font-size:12px;color:#6b7280;margin-bottom:8px;">AI Analysis: ${d.text}</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              ${d.images.map((img, ii) => `<img src="${img}" style="width:200px;height:140px;object-fit:cover;border:1px solid #d1d5db;border-radius:4px;" />`).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>` : '';
+
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Session Transcript - ${meta.sessionId || 'N/A'}</title>
+<style>
+  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; color: #111827; }
+  table { width: 100%; border-collapse: collapse; }
+</style></head><body>
+  <div style="border-bottom:3px solid #111827;padding-bottom:16px;margin-bottom:24px;">
+    <h1 style="font-size:20px;font-weight:700;margin:0 0 4px 0;letter-spacing:0.5px;">ISL BANKING KIOSK - SESSION TRANSCRIPT</h1>
+    <p style="font-size:12px;color:#6b7280;margin:0;">Confidential - For Internal Banking Use Only</p>
+  </div>
+
+  <table style="margin-bottom:32px;">
+    <tr><td style="padding:4px 12px 4px 0;font-size:12px;font-weight:600;color:#374151;width:140px;">Session ID</td><td style="padding:4px 0;font-size:12px;color:#111827;">${meta.sessionId || 'N/A'}</td></tr>
+    <tr><td style="padding:4px 12px 4px 0;font-size:12px;font-weight:600;color:#374151;">Date</td><td style="padding:4px 0;font-size:12px;color:#111827;">${startDate.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</td></tr>
+    <tr><td style="padding:4px 12px 4px 0;font-size:12px;font-weight:600;color:#374151;">Start Time</td><td style="padding:4px 0;font-size:12px;color:#111827;">${startDate.toLocaleTimeString('en-IN')}</td></tr>
+    <tr><td style="padding:4px 12px 4px 0;font-size:12px;font-weight:600;color:#374151;">Duration</td><td style="padding:4px 0;font-size:12px;color:#111827;">${meta.duration || 'N/A'}</td></tr>
+    <tr><td style="padding:4px 12px 4px 0;font-size:12px;font-weight:600;color:#374151;">Total Messages</td><td style="padding:4px 0;font-size:12px;color:#111827;">${msgs.length}</td></tr>
+    <tr><td style="padding:4px 12px 4px 0;font-size:12px;font-weight:600;color:#374151;">Documents Scanned</td><td style="padding:4px 0;font-size:12px;color:#111827;">${docScans.length}</td></tr>
+  </table>
+
+  <h2 style="font-size:14px;font-weight:700;color:#111827;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #111827;">Communication Log</h2>
+  <table>
+    <thead><tr style="background:#f9fafb;">
+      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #d1d5db;">Time</th>
+      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #d1d5db;">Source</th>
+      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #d1d5db;">Input Mode</th>
+      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #d1d5db;">Message</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  ${docSection}
+
+  <div style="margin-top:40px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;text-align:center;">
+    Generated automatically by ISL Banking Kiosk System | ${new Date().toLocaleString('en-IN')}
+  </div>
+</body></html>`;
+
+    const w = window.open('', '_blank');
+    w.document.write(html);
+    w.document.close();
+    setTimeout(() => w.print(), 400);
   };
 
   // Whisper Mic — uses dynamic API_BASE
@@ -181,6 +268,21 @@ export default function EmployeeDashboard() {
               <button className="btn btn-secondary" onClick={() => setShowEndConfirm(false)} style={{ padding: '10px 28px' }}>Cancel</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Download Transcript Banner */}
+      {showTranscriptBtn && !sessionActive && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 4000, background: 'var(--bg-surface)', border: '1px solid var(--border-light)', borderRadius: 16, padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 16, boxShadow: '0 20px 40px rgba(0,0,0,0.15)' }}>
+          <FileText size={24} style={{ color: 'var(--accent)' }} />
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-main)' }}>Session Complete</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Download the compliance transcript for this session.</div>
+          </div>
+          <button onClick={generateTranscript} className="btn" style={{ background: 'var(--accent)', color: 'white', padding: '10px 20px', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
+            <Download size={16} /> Download Transcript
+          </button>
+          <button onClick={() => setShowTranscriptBtn(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-faint)', cursor: 'pointer' }}><X size={18} /></button>
         </div>
       )}
 
@@ -367,7 +469,18 @@ export default function EmployeeDashboard() {
                       </div>
                       <div style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.5, color: 'var(--text-main)' }}>{msg.text}</div>
                       
-                      {msg.type === 'doc' && msg.image && (
+                      {msg.type === 'doc' && msg.images && msg.images.length > 0 && (
+                        <div style={{ marginTop: 8, display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+                          {msg.images.map((img, imgIdx) => (
+                            <div key={imgIdx} style={{ flexShrink: 0, cursor: 'pointer', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-light)', width: 120 }} onClick={() => setExpandedImage(img)}>
+                              <img src={img} alt={`Page ${imgIdx + 1}`} style={{ width: '100%', height: 80, objectFit: 'cover', display: 'block' }} />
+                              <div style={{ background: 'var(--bg-subtle)', padding: '4px 8px', fontSize: 10, color: 'var(--text-muted)', textAlign: 'center', fontWeight: 600 }}>Page {imgIdx + 1}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {/* Legacy single image support */}
+                      {msg.type === 'doc' && msg.image && !msg.images && (
                         <div style={{ marginTop: 8, cursor: 'pointer', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-light)' }} onClick={() => setExpandedImage(msg.image)}>
                           <img src={msg.image} alt="Scanned Document Thumbnail" style={{ width: '100%', maxHeight: 150, objectFit: 'cover', display: 'block' }} />
                           <div style={{ background: 'var(--bg-subtle)', padding: '6px 12px', fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', fontWeight: 600 }}>Click to expand image</div>
@@ -388,7 +501,15 @@ export default function EmployeeDashboard() {
       {/* Expanded Image Modal */}
       {expandedImage && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 3000, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '16px 24px', display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ padding: '16px 24px', display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+            <button onClick={() => {
+              const link = document.createElement('a');
+              link.href = expandedImage;
+              link.download = `scanned_document_${Date.now()}.jpg`;
+              link.click();
+            }} style={{ background: 'rgba(59,130,246,0.8)', border: 'none', color: 'white', borderRadius: 8, height: 40, padding: '0 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+              <Download size={18} /> Download
+            </button>
             <button onClick={() => setExpandedImage(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
               <X size={24} />
             </button>

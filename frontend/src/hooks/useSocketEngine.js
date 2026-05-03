@@ -173,8 +173,8 @@ export function useSocketEngine(role) {
           id: Date.now() + Math.random(),
           type: 'doc',
           text: data.summary || 'Document received.',
-          image: data.image,
-          label: 'Scanned Document',
+          images: data.images || (data.image ? [data.image] : []),
+          label: `Scanned Document (${(data.images || [data.image]).length} page${(data.images || [data.image]).length > 1 ? 's' : ''})`,
           time: new Date(data.timestamp * 1000 || Date.now()).toLocaleTimeString()
         }]);
       }
@@ -319,11 +319,13 @@ export function useSocketEngine(role) {
     }
   }, []);
 
-  const scanDocument = useCallback((base64Image) => {
+  const scanDocument = useCallback((base64Images) => {
     if (socketRef.current && sessionId) {
-      socketRef.current.emit('document_scanned', { session_id: sessionId, image: base64Image });
+      const imagesArray = Array.isArray(base64Images) ? base64Images : [base64Images];
+      socketRef.current.emit('document_scanned', { session_id: sessionId, images: imagesArray });
       setMessages(prev => [...prev, {
-        id: Date.now() + Math.random(), type: 'tx', text: 'Sent a scanned document.',
+        id: Date.now() + Math.random(), type: 'tx',
+        text: `Sent ${imagesArray.length} scanned document page${imagesArray.length > 1 ? 's' : ''}.`,
         label: 'You (Document)', time: new Date().toLocaleTimeString(),
         inputMode: 'text'
       }]);

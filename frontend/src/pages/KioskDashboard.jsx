@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, Suspense, useCallback } from 'react';
 import { useSocketEngine } from '../hooks/useSocketEngine';
-import { Camera, HandMetal, Send, RotateCcw, Square, MessageSquare, AlertTriangle, Loader2, MessageCircle, Keyboard, CheckCircle2, ScanLine, X } from 'lucide-react';
+import { Camera, HandMetal, Send, RotateCcw, Square, MessageSquare, AlertTriangle, Loader2, MessageCircle, Keyboard, CheckCircle2, ScanLine, X, Plus, Trash2, Images } from 'lucide-react';
 import AvatarScene, { getGestureForText } from '../components/AvatarScene';
 
 export default function KioskDashboard() {
@@ -18,8 +18,10 @@ export default function KioskDashboard() {
   const [curSentence, setCurSentence] = useState('');
   const [typedText, setTypedText] = useState('');
   const [showTextInput, setShowTextInput] = useState(false);
-  const [scannedImage, setScannedImage] = useState(null);
+  const [scannedImages, setScannedImages] = useState([]);
   const [showFlash, setShowFlash] = useState(false);
+  const [scannerMode, setScannerMode] = useState(null); // null | 'capturing' | 'gallery'
+  const MAX_SCAN_PAGES = 5;
 
   // Typewriter effect for employee message
   const [displayedText, setDisplayedText] = useState('');
@@ -158,18 +160,38 @@ export default function KioskDashboard() {
   };
 
   const handleCaptureDocument = () => {
-    if (canvasRef.current) {
-      const dataUrl = canvasRef.current.toDataURL('image/jpeg', 0.8);
+    if (videoRef.current && canvasRef.current && scannedImages.length < MAX_SCAN_PAGES) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
       setShowFlash(true);
       setTimeout(() => setShowFlash(false), 200);
-      setScannedImage(dataUrl);
+      setScannedImages(prev => [...prev, dataUrl]);
+      setScannerMode('gallery');
     }
   };
 
+  const handleStartCapture = () => {
+    setScannerMode('capturing');
+  };
+
+  const handleRemoveScannedImage = (index) => {
+    setScannedImages(prev => {
+      const next = prev.filter((_, i) => i !== index);
+      if (next.length === 0) setScannerMode(null);
+      return next;
+    });
+  };
+
   const handleSendDocument = () => {
-    if (scannedImage) {
-      scanDocument(scannedImage);
-      setScannedImage(null);
+    if (scannedImages.length > 0) {
+      scanDocument(scannedImages);
+      setScannedImages([]);
+      setScannerMode(null);
     }
   };
 
@@ -284,34 +306,71 @@ export default function KioskDashboard() {
           )}
         </div>
 
-        {/* Document Scanner Overlay */}
-        {scannedImage && (
-          <div style={{ position: 'absolute', inset: 0, zIndex: 1000, background: '#000', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.8)' }}>
-              <div style={{ color: 'white', fontWeight: 600, fontSize: 14 }}>Document Preview</div>
-              <button onClick={() => setScannedImage(null)} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}><X size={20} /></button>
+        {/* Document Scanner — Camera Capture Mode */}
+        {scannerMode === 'capturing' && (
+          <div style={{ position: 'absolute', inset: 0, zIndex: 1000, display: 'flex', flexDirection: 'column' }}>
+            {/* Top bar */}
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(to bottom, rgba(0,0,0,0.7), transparent)' }}>
+              <div style={{ color: 'white', fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <ScanLine size={16} /> Position document in view
+              </div>
+              <button onClick={() => setScannerMode(scannedImages.length > 0 ? 'gallery' : null)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Cancel</button>
             </div>
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-              <img src={scannedImage} alt="Scanned Document" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8 }} />
+            {/* Capture button at bottom */}
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10, padding: 20, display: 'flex', justifyContent: 'center', background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)' }}>
+              <button onClick={handleCaptureDocument} style={{ width: 72, height: 72, borderRadius: '50%', border: '4px solid white', background: 'rgba(255,255,255,0.2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.4)', transition: 'transform 0.1s' }} onMouseDown={e => e.currentTarget.style.transform = 'scale(0.9)'} onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'white' }} />
+              </button>
+            </div>
+            {/* Page count badge */}
+            {scannedImages.length > 0 && (
+              <div style={{ position: 'absolute', bottom: 24, right: 24, zIndex: 10, background: 'var(--accent)', color: 'white', borderRadius: 20, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => setScannerMode('gallery')}>
+                <Images size={14} /> {scannedImages.length} page{scannedImages.length > 1 ? 's' : ''}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Document Scanner — Gallery Review Mode */}
+        {scannerMode === 'gallery' && scannedImages.length > 0 && (
+          <div style={{ position: 'absolute', inset: 0, zIndex: 1000, background: '#0a0a0a', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.8)' }}>
+              <div style={{ color: 'white', fontWeight: 600, fontSize: 14 }}>📄 {scannedImages.length} / {MAX_SCAN_PAGES} Pages Scanned</div>
+              <button onClick={() => { setScannedImages([]); setScannerMode(null); }} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}><X size={20} /></button>
+            </div>
+            <div style={{ flex: 1, display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'center', padding: 16, overflowX: 'auto' }}>
+              {scannedImages.map((img, idx) => (
+                <div key={idx} style={{ position: 'relative', flexShrink: 0, width: 140, height: 180, borderRadius: 8, overflow: 'hidden', border: '2px solid rgba(255,255,255,0.3)' }}>
+                  <img src={img} alt={`Page ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.7)', color: 'white', fontSize: 10, fontWeight: 700, textAlign: 'center', padding: 3 }}>Page {idx + 1}</div>
+                  <button onClick={() => handleRemoveScannedImage(idx)} style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(220,38,38,0.85)', border: 'none', color: 'white', borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Trash2 size={12} /></button>
+                </div>
+              ))}
+              {scannedImages.length < MAX_SCAN_PAGES && (
+                <button onClick={handleStartCapture} style={{ flexShrink: 0, width: 140, height: 180, borderRadius: 8, border: '2px dashed rgba(255,255,255,0.3)', background: 'transparent', color: 'rgba(255,255,255,0.6)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                  <Plus size={28} />
+                  Add Page
+                </button>
+              )}
             </div>
             <div style={{ padding: 16, display: 'flex', gap: 12, background: 'rgba(0,0,0,0.8)' }}>
               <button onClick={handleSendDocument} style={{ flex: 1, padding: 12, background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                <Send size={16} /> Send to Employee
+                <Send size={16} /> Send {scannedImages.length} Page{scannedImages.length > 1 ? 's' : ''}
               </button>
-              <button onClick={() => setScannedImage(null)} style={{ flex: 1, padding: 12, background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                <RotateCcw size={16} /> Retake
+              <button onClick={() => { setScannedImages([]); setScannerMode(null); }} style={{ flex: 1, padding: 12, background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <Trash2 size={16} /> Clear All
               </button>
             </div>
           </div>
         )}
 
         {/* Buttons */}
-        {sessionActive && detectionState === 'scanning' && !scannedImage && (
+        {sessionActive && detectionState === 'scanning' && !scannerMode && (
           <div style={{ display: 'flex', gap: 8, margin: '0 8px 8px' }}>
             <button className="btn" onClick={stopSigning} style={{ flex: 2, padding: 10, fontSize: 14, background: 'var(--danger)', color: 'white', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               <Square size={16} fill="white" /> Done Signing
             </button>
-            <button className="btn" onClick={handleCaptureDocument} style={{ flex: 1, padding: 10, fontSize: 14, background: 'var(--bg-surface)', color: 'var(--text-main)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <button className="btn" onClick={handleStartCapture} style={{ flex: 1, padding: 10, fontSize: 14, background: 'var(--bg-surface)', color: 'var(--text-main)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               <ScanLine size={16} /> Scan Doc
             </button>
           </div>

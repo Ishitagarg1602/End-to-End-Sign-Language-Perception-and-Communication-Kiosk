@@ -656,20 +656,20 @@ async def connect(sid, environ):
 @sio.event
 async def document_scanned(sid, data):
     session_id = data.get('session_id')
-    image_data = data.get('image')
-    if not session_id or not image_data:
+    # Support both single image (legacy) and images array
+    images = data.get('images') or ([data.get('image')] if data.get('image') else [])
+    if not session_id or not images:
         return
         
     if session_id == state.current_session_id and state.assigned_employee_sid:
-        logger.info(f"Document scanned for session {session_id}")
+        logger.info(f"Document scanned for session {session_id}: {len(images)} page(s)")
         
-        # We can emit an immediate placeholder if we want, but we'll wait for AI to finish
-        ai_summary = await analyze_scanned_document(image_data)
+        ai_summary = await analyze_scanned_document(images)
         
         # Send to employee
         await sio.emit('document_received', {
             'session_id': session_id,
-            'image': image_data,
+            'images': images,
             'summary': ai_summary,
             'timestamp': time.time()
         }, to=state.assigned_employee_sid)
@@ -1185,50 +1185,57 @@ async def generate_nlp_intents(word: str, count: int = 10) -> list:
     _llm_intent_cache[cache_key] = result
     return result
 
-async def analyze_scanned_document(base64_image: str) -> str:
-    """Use Groq Vision model to analyze and summarize a scanned document."""
+async def analyze_scanned_document(images) -> str:
+    """Use Groq Vision model to analyze and summarize scanned document(s)."""
+    # Normalize input: accept single string or list
+    if isinstance(images, str):
+        images = [images]
+    
     api_key = os.environ.get('GROQ_API_KEY', '')
     if not api_key:
-        return "Image received (AI analysis unavailable without API key)."
+        return f"{len(images)} image(s) received (AI analysis unavailable without API key)."
     
     try:
         import httpx
-        # Ensure base64 prefix is correct
-        if base64_image.startswith('data:image'):
-            # The API might expect just the base64 URL format with the data prefix, which is what we have
-            img_url = base64_image
-        else:
-            img_url = f"data:image/jpeg;base64,{base64_image}"
+        
+        # Build the content array: text prompt + all image blocks
+        content_blocks = [
+            {"type": "text", "text": f"A bank customer at a kiosk has scanned {len(images)} document page(s). Identify each document type (e.g., Aadhaar Card, PAN Card, Late Fee Notice, Bank Statement, Cheque) and provide a concise summary of the key contents visible across all pages to help the bank teller understand the customer's situation."}
+        ]
+        
+        for img in images[:5]:  # Groq max 5 images per request
+            if img.startswith('data:image'):
+                img_url = img
+            else:
+                img_url = f"data:image/jpeg;base64,{img}"
+            content_blocks.append({"type": "image_url", "image_url": {"url": img_url}})
             
         async with httpx.AsyncClient() as client:
             resp = await client.post(
                 'https://api.groq.com/openai/v1/chat/completions',
                 headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
                 json={
-                    'model': 'llama-3.2-90b-vision-preview',
+                    'model': 'meta-llama/llama-4-scout-17b-16e-instruct',
                     'messages': [
                         {
                             'role': 'user', 
-                            'content': [
-                                {"type": "text", "text": "This is a document scanned by a bank customer at a kiosk. Identify the type of document (e.g., Aadhaar Card, PAN Card, Late Fee Notice) and provide a 2-3 sentence summary of its key contents to help the bank teller."},
-                                {"type": "image_url", "image_url": {"url": img_url}}
-                            ]
+                            'content': content_blocks
                         }
                     ],
                     'temperature': 0.3,
-                    'max_tokens': 200
+                    'max_tokens': 400
                 },
-                timeout=15.0
+                timeout=30.0
             )
         data = resp.json()
         if 'choices' in data and len(data['choices']) > 0:
             return data['choices'][0]['message']['content'].strip()
         else:
             logger.error(f"Vision API error response: {data}")
-            return "Image scanned successfully, but AI analysis failed."
+            return f"{len(images)} image(s) scanned successfully, but AI analysis failed."
     except Exception as e:
         logger.error(f"Error analyzing document: {e}")
-        return "Image scanned successfully (AI analysis encountered an error)."
+        return f"{len(images)} image(s) scanned successfully (AI analysis encountered an error)."
 
 
 # Banking domain categories for offline fallback
