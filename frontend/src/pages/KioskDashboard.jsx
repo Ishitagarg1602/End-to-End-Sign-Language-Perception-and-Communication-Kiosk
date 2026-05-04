@@ -299,7 +299,7 @@ export default function KioskDashboard() {
                 loop
                 muted
                 playsInline
-                style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', display: 'block' }}
+                style={{ width: '100%', height: '100%', objectFit: 'contain', backgroundColor: '#ffffff', transform: 'scale(1.7)', transformOrigin: 'top center', display: 'block' }}
               />
             </div>
 
@@ -410,7 +410,7 @@ export default function KioskDashboard() {
                 loop
                 muted
                 playsInline
-                style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', display: 'block' }}
+                style={{ width: '100%', height: '100%', objectFit: 'contain', backgroundColor: '#ffffff', transform: 'scale(1.7)', transformOrigin: 'top center', display: 'block' }}
               />
               <div style={{ position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', padding: '8px 20px', borderRadius: 30, color: '#ffffff', fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>
                 <MessageSquare size={14} /> Bank Representative
