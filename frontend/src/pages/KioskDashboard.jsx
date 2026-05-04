@@ -5,7 +5,7 @@ import AvatarScene, { getGestureForText } from '../components/AvatarScene';
 export default function KioskDashboard() {
   const {
     socket, isConnected, sessionId, sessionActive, waitingApproval,
-    latestSign, confirmedWords, messages,
+    detectionState, latestSign, confirmedWords, messages,
     employeeMessage, multiPersonAlert,
     stopSigning, confirmSign, retrySign, endSession, dismissEmployeeMessage, sendTextMessage, scanDocument, resumeAfterMultiPerson, sendFeedback, API_BASE
   } = useSocketEngine('kiosk');
