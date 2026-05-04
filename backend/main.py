@@ -91,6 +91,8 @@ async def connect(sid, environ):
 async def disconnect(sid):
     """Handle disconnection."""
     logger.info(f"Client disconnected: {sid}")
+    detection_states.pop(sid, None)
+    frame_buffers.pop(sid, None)
 
 
 @sio.on(evt.JOIN_KIOSK)
@@ -102,9 +104,21 @@ async def on_join_kiosk(sid, data=None):
 
 @sio.on(evt.JOIN_EMPLOYEE)
 async def on_join_employee(sid, data=None):
-    """Employee joins their room."""
+    """Employee joins their room and receives any pending session request."""
     sio.enter_room(sid, evt.ROOM_EMPLOYEE)
     logger.info(f"Employee joined: {sid}")
+    # Replay any pending session request so employee doesn't miss it
+    pending = None
+    for s_id, sess in session_mgr.active_sessions.items():
+        if sess.status == 'active' and sess.employee_id is None:  # waiting for employee
+            pending = sess
+            break
+    if pending:
+        logger.info(f"Replaying pending session_request {pending.session_id} to employee {sid}")
+        await sio.emit(evt.SESSION_REQUEST, {
+            'session_id': pending.session_id,
+            'timestamp': datetime.now().isoformat()
+        }, room=sid)
 
 
 @sio.on(evt.USER_CONFIRMED)
@@ -172,29 +186,49 @@ async def on_video_frame(sid, data):
         image_data = data['image'].split(',')[1] if ',' in data['image'] else data['image']
         nparr = np.frombuffer(base64.b64decode(image_data), np.uint8)
         frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        
+        if frame is None:
+            return
+
         state = detection_states.get(sid, 'idle')
-        session_id = None
-        for s_id, sess in session_mgr.active_sessions.items():
-            if sess.status in ['active', 'accepted']:
-                session_id = s_id
-                break
-        
-        if state == 'idle' or session_id is None:
-            in_zone, _ = await asyncio.to_thread(presence_detector.detect, frame)
-            if in_zone:
+
+        if state == 'idle':
+            # Throttle: only run detection every 3rd frame to reduce CPU load
+            frame_count = getattr(on_video_frame, '_frame_counts', {})
+            frame_count[sid] = frame_count.get(sid, 0) + 1
+            on_video_frame._frame_counts = frame_count
+            if frame_count[sid] % 3 != 0:
+                return
+
+            # Check if any session is already waiting or active — don't create duplicates
+            has_active = any(s.status in ['active', 'accepted']
+                             for s in session_mgr.active_sessions.values())
+            if has_active:
+                return
+
+            # Use hand landmark extractor as presence detector:
+            # If hands are visible → user is at kiosk. This works perfectly for
+            # close-up kiosk cameras where full-body pose detection fails.
+            features = await asyncio.to_thread(landmark_extractor.extract, frame)
+            if features is not None:
                 sess = session_mgr.create_session()
                 detection_states[sid] = 'waiting_approval'
                 frame_buffers[sid] = []
+                logger.info(f"User detected (hands visible), session {sess.session_id} created")
+                # Send user_detected directly to THIS kiosk tab's sid
                 await sio.emit(evt.USER_DETECTED, evt.user_detected_payload(sess.session_id), room=sid)
-                await sio.emit(evt.SESSION_REQUEST, {'session_id': sess.session_id}, room=evt.ROOM_EMPLOYEE)
-        
+                # Send session_request to employee room
+                req_payload = {'session_id': sess.session_id, 'timestamp': datetime.now().isoformat()}
+                await sio.emit(evt.SESSION_REQUEST, req_payload, room=evt.ROOM_EMPLOYEE)
+                # Broadcast fallback: emit to ALL connected clients (employee may not have joined room yet)
+                await sio.emit(evt.SESSION_REQUEST, req_payload)
+
         elif state == 'scanning':
             features = await asyncio.to_thread(landmark_extractor.extract, frame)
             if features is not None:
-                if sid not in frame_buffers: frame_buffers[sid] = []
+                if sid not in frame_buffers:
+                    frame_buffers[sid] = []
                 frame_buffers[sid].append(features)
-                
+
     except Exception as e:
         logger.warning(f"Error processing video frame: {e}")
 
