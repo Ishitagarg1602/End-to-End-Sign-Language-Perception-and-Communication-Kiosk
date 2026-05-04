@@ -12,16 +12,17 @@ RUN apt-get update && apt-get install -y \
     libegl1 \
     libglib2.0-0 \
     ffmpeg \
+    portaudio19-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the current directory contents into the container
 COPY . /app
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r mvp/backend/requirements.txt
+RUN pip install --no-cache-dir -r backend/requirements.txt
 
 # Hugging Face Spaces expose port 7860
 EXPOSE 7860
 
 # Command to run the application on port 7860 for Hugging Face Spaces
-CMD ["sh", "-c", "uvicorn mvp.backend.main:app --host 0.0.0.0 --port 7860"]
+CMD ["sh", "-c", "PYTHONPATH=/app/backend uvicorn backend.main:app --host 0.0.0.0 --port 7860"]
