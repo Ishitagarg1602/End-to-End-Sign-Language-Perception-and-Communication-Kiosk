@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, Suspense, useCallback } from 'react
 import { useSocketEngine } from '../hooks/useSocketEngine';
 import { Camera, HandMetal, Send, RotateCcw, Square, MessageSquare, AlertTriangle, Loader2, MessageCircle, Keyboard, CheckCircle2, ScanLine, X, Plus, Trash2, Images } from 'lucide-react';
 import AvatarScene, { getGestureForText } from '../components/AvatarScene';
+import manVideo from '../assets/MAN.mp4';
 
 export default function KioskDashboard() {
   const {
@@ -295,7 +296,7 @@ export default function KioskDashboard() {
             {/* Video section */}
             <div style={{ width: '100%', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0', overflow: 'hidden', borderRadius: '12px 12px 0 0', height: 240 }}>
               <video
-                src="/MAN.mp4"
+                src={manVideo}
                 autoPlay
                 loop
                 muted
@@ -406,7 +407,7 @@ export default function KioskDashboard() {
           <div className="animate-enter" style={{ width: '90vw', maxWidth: 720, background: 'var(--bg-surface)', borderRadius: 24, overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', border: '1px solid var(--border-light)' }}>
             <div style={{ height: 280, position: 'relative', overflow: 'hidden', borderRadius: '24px 24px 0 0' }}>
               <video
-                src="/MAN.mp4"
+                src={manVideo}
                 autoPlay
                 loop
                 muted
