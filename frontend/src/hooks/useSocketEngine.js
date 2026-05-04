@@ -346,6 +346,17 @@ export function useSocketEngine(role) {
     setMultiPersonAlert(null);
     if (sessionActiveRef.current) setDetectionState('scanning');
   }, []);
+
+  // Send feedback: correct_word = the right label, wrong_word = what model said
+  const sendFeedback = useCallback((correctWord, wrongWord) => {
+    if (socketRef.current) {
+      socketRef.current.emit('label_feedback', {
+        session_id: sessionId,
+        correct_word: correctWord,
+        wrong_word: wrongWord || ''
+      });
+    }
+  }, [sessionId]);
   return {
     socket: socketRef.current,
     isConnected,
@@ -375,6 +386,7 @@ export function useSocketEngine(role) {
     sendVoiceAudio,
     scanDocument,
     resumeAfterMultiPerson,
+    sendFeedback,
     API_BASE,
   };
 }

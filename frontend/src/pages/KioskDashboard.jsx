@@ -5,9 +5,9 @@ import AvatarScene, { getGestureForText } from '../components/AvatarScene';
 export default function KioskDashboard() {
   const {
     socket, isConnected, sessionId, sessionActive, waitingApproval,
-    detectionState, latestSign, confirmedWords, messages,
+    latestSign, confirmedWords, messages,
     employeeMessage, multiPersonAlert,
-    stopSigning, confirmSign, retrySign, endSession, dismissEmployeeMessage, sendTextMessage, scanDocument, resumeAfterMultiPerson
+    stopSigning, confirmSign, retrySign, endSession, dismissEmployeeMessage, sendTextMessage, scanDocument, resumeAfterMultiPerson, sendFeedback, API_BASE
   } = useSocketEngine('kiosk');
 
   const videoRef = useRef(null);
@@ -31,6 +31,21 @@ export default function KioskDashboard() {
   const [displayedText, setDisplayedText] = useState('');
   const [typewriterDone, setTypewriterDone] = useState(false);
   const [cameraError, setCameraError] = useState(null);
+
+  // Feedback State
+  const [showFeedbackUI, setShowFeedbackUI] = useState(false);
+  const [allClasses, setAllClasses] = useState([]);
+  const [feedbackSearch, setFeedbackSearch] = useState('');
+
+  // Fetch classes for feedback
+  useEffect(() => {
+    if (API_BASE) {
+      fetch(`${API_BASE}/api/classes`)
+        .then(res => res.json())
+        .then(data => setAllClasses(data.classes || []))
+        .catch(err => console.error("Failed to load classes:", err));
+    }
+  }, [API_BASE]);
 
   // Camera init
   useEffect(() => {
@@ -85,6 +100,9 @@ export default function KioskDashboard() {
         setSelectedIntent(null);
         setCurSentence(latestSign.sentence);
       }
+    } else {
+      setShowFeedbackUI(false);
+      setFeedbackSearch('');
     }
   }, [latestSign]);
 
@@ -552,7 +570,28 @@ export default function KioskDashboard() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
           {/* DETECTED STATE — Intent selector */}
-          {latestSign && (
+          {latestSign && showFeedbackUI && (
+            <div className="animate-enter" style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-light)', flexShrink: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>What were you actually trying to sign?</div>
+              <input type="text" placeholder="Search correct word..." value={feedbackSearch} onChange={e => setFeedbackSearch(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #d0d0d0', fontSize: 13, background: '#efefef', outline: 'none', fontFamily: 'var(--font-sans)', color: '#111111', marginBottom: 12 }} />
+              
+              <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12 }}>
+                {allClasses.filter(c => c.toLowerCase().includes(feedbackSearch.toLowerCase())).map(c => (
+                  <button key={c} onClick={() => {
+                    sendFeedback(c, latestSign.word);
+                    setShowFeedbackUI(false);
+                    retrySign(); // Resume detection
+                  }} style={{ padding: '10px 12px', textAlign: 'left', background: 'var(--bg-surface)', border: '1px solid var(--border-light)', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                    {c}
+                  </button>
+                ))}
+                {allClasses.length === 0 && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Loading classes...</div>}
+              </div>
+              <button onClick={() => setShowFeedbackUI(false)} style={{ width: '100%', padding: 10, fontSize: 13, background: 'transparent', border: '1px solid var(--border-light)', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
+            </div>
+          )}
+
+          {latestSign && !showFeedbackUI && (
             <div className="animate-enter" style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-light)', flexShrink: 0 }}>
               {/* Word + Confidence */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
@@ -598,12 +637,17 @@ export default function KioskDashboard() {
               </button>
 
               {/* Action Buttons */}
-              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                <button className="btn btn-primary" onClick={handleConfirm} disabled={!selectedIntent && !curSentence} style={{ flex: 1, padding: 10, fontSize: 13 }}>
-                  <CheckCircle2 size={14} /> Confirm & Send
-                </button>
-                <button className="btn btn-secondary" onClick={handleRetry} style={{ flex: 1, padding: 10, fontSize: 13 }}>
-                  <RotateCcw size={14} /> Retry
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn btn-primary" onClick={handleConfirm} disabled={!selectedIntent && !curSentence} style={{ flex: 1, padding: 10, fontSize: 13 }}>
+                    <CheckCircle2 size={14} /> Confirm & Send
+                  </button>
+                  <button className="btn btn-secondary" onClick={handleRetry} style={{ flex: 1, padding: 10, fontSize: 13 }}>
+                    <RotateCcw size={14} /> Retry
+                  </button>
+                </div>
+                <button className="btn" onClick={() => setShowFeedbackUI(true)} style={{ padding: '8px', fontSize: 12, background: 'rgba(220,38,38,0.05)', color: 'var(--danger)', border: '1px dashed rgba(220,38,38,0.4)', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
+                  <AlertTriangle size={12} style={{ display: 'inline', marginRight: 4 }} /> Wrong Prediction? Send Feedback
                 </button>
               </div>
             </div>
