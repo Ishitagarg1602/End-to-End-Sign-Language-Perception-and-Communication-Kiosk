@@ -627,10 +627,9 @@ async def camera_loop():
             # Buffer frames when session is active and detecting
             if state.user_in_zone and state.detection_state == 'detecting' and state.session_accepted_by_employee:
                 if hands_visible:
-                    # Do NOT apply wrist_centering or scale_normalization here!
-                    # The training data (splits/*.npy) was raw landmarks with no normalization.
-                    # Applying normalization here would cause a train/inference mismatch.
-                    state.frame_buffer.append(current_features)
+                    features = wrist_centering(current_features)
+                    features = scale_normalization(features)
+                    state.frame_buffer.append(features)
                     state.last_hand_time = now
 
                 if len(state.frame_buffer) > 60:
@@ -1331,12 +1330,13 @@ async def stop_signing(sid, data=None):
         await sio.emit('prediction_error', {'error': 'Model not loaded'}, room='kiosk')
         return
 
-    if len(state.frame_buffer) < 5:
-        await sio.emit('prediction_error', {'error': 'Not enough frames. Please sign for a bit longer.'}, room='kiosk')
+    if len(state.frame_buffer) < 15:
+        await sio.emit('prediction_error', {'error': 'Not enough frames. Please sign more slowly and for longer.'}, room='kiosk')
         logger.info("Not enough frames for prediction")
         return
 
-    raw = state.frame_buffer[-SEQUENCE_BUFFER_SIZE:] if len(state.frame_buffer) >= SEQUENCE_BUFFER_SIZE else state.frame_buffer[:]
+    # Use the full frame buffer (up to 90 frames) for best accuracy
+    raw = state.frame_buffer[-90:] if len(state.frame_buffer) > 90 else state.frame_buffer[:]
     logger.info(f"Predicting with {len(raw)} frames...")
 
     sequence = preprocess_sequence(raw)
