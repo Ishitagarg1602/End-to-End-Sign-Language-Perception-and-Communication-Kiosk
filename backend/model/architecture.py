@@ -75,7 +75,7 @@ def build_model(num_classes: int = NUM_CLASSES,
     x = GlobalAveragePooling1D(name='global_avg_pool')(x)
     # Shape: (batch, 128)
 
-    x = Dense(128, activation='relu', name='dense_1')(x)
+    x = Dense(128, activation='relu', name='classifier_dense')(x)
     x = Dropout(DROPOUT_DENSE, name='dropout_dense')(x)
     outputs = Dense(num_classes, activation='softmax', name='output')(x)
     # Shape: (batch, NUM_CLASSES)

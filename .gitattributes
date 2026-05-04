@@ -3,9 +3,6 @@
 *.pkl filter=lfs diff=lfs merge=lfs -text
 *.glb filter=lfs diff=lfs merge=lfs -text
 *.npy filter=lfs diff=lfs merge=lfs -text
-<<<<<<< HEAD
-=======
 *.pt filter=lfs diff=lfs merge=lfs -text
 *.task filter=lfs diff=lfs merge=lfs -text
->>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
 *.mp4 filter=lfs diff=lfs merge=lfs -text
