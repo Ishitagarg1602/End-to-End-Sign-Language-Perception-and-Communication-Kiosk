@@ -67,7 +67,15 @@ class Predictor:
                     kwargs.pop('renorm_momentum', None)
                     super().__init__(**kwargs)
 
-            self.model = tf.keras.models.load_model(str(path), custom_objects={'BatchNormalization': CustomBN})
+            class CustomMHA(tf.keras.layers.MultiHeadAttention):
+                def __init__(self, **kwargs):
+                    kwargs.pop('use_gate', None)
+                    super().__init__(**kwargs)
+
+            self.model = tf.keras.models.load_model(str(path), custom_objects={
+                'BatchNormalization': CustomBN,
+                'MultiHeadAttention': CustomMHA
+            })
             self.model_type = 'cnn_lstm'
             print(f"[Predictor] Loaded CNN-LSTM model from {path}")
 
