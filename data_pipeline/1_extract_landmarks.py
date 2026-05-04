@@ -434,7 +434,7 @@ def main():
 
             if landmarks is None:
                 failed += 1
-                print(f"    ✗ {filename} — FAILED (cannot read)")
+                print(f"    [FAIL] {filename} - FAILED (cannot read)")
                 continue
 
             # Save as .npy
@@ -443,12 +443,12 @@ def main():
             successful += 1
 
             # Flag low detection
-            status = "✓"
+            status = "[OK]"
             if detection_ratio < MIN_DETECTION_RATIO:
                 low_detection.append((filename, word, detection_ratio))
-                status = "⚠"
+                status = "[WARN]"
 
-            print(f"    {status} {filename} — {detection_ratio:.0%} detection, "
+            print(f"    {status} {filename} - {detection_ratio:.0%} detection, "
                   f"shape {landmarks.shape}")
 
     # Close detector
@@ -467,7 +467,7 @@ def main():
     print(f"  Time elapsed           : {elapsed:.1f}s")
 
     if low_detection:
-        print(f"\n  ⚠ Videos with <{MIN_DETECTION_RATIO:.0%} hand detection:")
+        print(f"\n  [WARN] Videos with <{MIN_DETECTION_RATIO:.0%} hand detection:")
         for fname, word, ratio in low_detection:
             print(f"    - {word}/{fname}: {ratio:.0%}")
 
