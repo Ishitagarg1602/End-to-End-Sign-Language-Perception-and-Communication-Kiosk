@@ -271,7 +271,7 @@ async def transcribe_audio(audio: UploadFile = File(...)):
 
 
 # Mount Socket.IO on FastAPI
-app = socketio.ASGIApp(sio, other_app=fastapi_app)
+app = socketio.ASGIApp(sio, other_asgi_app=fastapi_app)
 
 
 if __name__ == '__main__':
