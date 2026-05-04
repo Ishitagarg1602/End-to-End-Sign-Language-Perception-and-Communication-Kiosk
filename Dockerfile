@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     ffmpeg \
     portaudio19-dev \
+    gcc \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the current directory contents into the container
