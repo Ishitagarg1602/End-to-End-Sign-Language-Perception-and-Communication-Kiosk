@@ -8,7 +8,11 @@ export default function KioskDashboard() {
     socket, isConnected, sessionId, sessionActive, waitingApproval,
     detectionState, latestSign, confirmedWords, messages,
     employeeMessage, multiPersonAlert,
+<<<<<<< HEAD
+    stopSigning, confirmSign, retrySign, endSession, dismissEmployeeMessage, sendTextMessage, scanDocument
+=======
     stopSigning, confirmSign, retrySign, endSession, dismissEmployeeMessage, sendTextMessage, scanDocument, resumeAfterMultiPerson
+>>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
   } = useSocketEngine('kiosk');
 
   const videoRef = useRef(null);
@@ -23,12 +27,15 @@ export default function KioskDashboard() {
   const [scannerMode, setScannerMode] = useState(null); // null | 'capturing' | 'gallery'
   const MAX_SCAN_PAGES = 5;
 
+<<<<<<< HEAD
+=======
   // Onboarding state
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
   const [onboardingName, setOnboardingName] = useState('');
   const [onboardingDOB, setOnboardingDOB] = useState('');
 
+>>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
   // Typewriter effect for employee message
   const [displayedText, setDisplayedText] = useState('');
   const [typewriterDone, setTypewriterDone] = useState(false);
@@ -138,6 +145,8 @@ export default function KioskDashboard() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+<<<<<<< HEAD
+=======
   // Trigger onboarding when session becomes active
   useEffect(() => {
     if (sessionActive && !onboardingCompleted) {
@@ -161,6 +170,7 @@ export default function KioskDashboard() {
     sendTextMessage(`User details received: ${onboardingName.trim()}, DOB: ${onboardingDOB}`);
   };
 
+>>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
   const handleConfirm = () => {
     if (!latestSign) return;
     confirmSign(latestSign.word, curSentence, latestSign.confidence, selectedIntent?.label);
@@ -235,6 +245,23 @@ export default function KioskDashboard() {
   const status = statusConfig[detectionState] || statusConfig.idle;
 
   return (
+<<<<<<< HEAD
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', padding: '12px', height: '100vh', overflow: 'hidden', position: 'relative' }}>
+
+      {/* WAITING APPROVAL OVERLAY */}
+      {waitingApproval && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 3000, background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(12px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
+          <div style={{ width: 280, height: 280 }}>
+            <Suspense fallback={null}><AvatarScene gesture="wave" isActive={true} /></Suspense>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <Loader2 size={24} className="spin-icon" style={{ color: 'var(--accent)' }} />
+            <span style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-main)' }}>Connecting to bank representative…</span>
+          </div>
+          <p style={{ fontSize: 14, color: 'var(--text-muted)', maxWidth: 400, textAlign: 'center', lineHeight: 1.6 }}>
+            Please wait while a bank employee accepts your session.
+          </p>
+=======
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', position: 'relative' }}>
 
       {/* TOP HEADER BAR */}
@@ -372,6 +399,7 @@ export default function KioskDashboard() {
               </button>
             </form>
           </div>
+>>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
         </div>
       )}
 
@@ -388,12 +416,15 @@ export default function KioskDashboard() {
               {multiPersonAlert.faces > 0 && <span>👤 {multiPersonAlert.faces} faces</span>}
               {multiPersonAlert.hands > 0 && <span>✋ {multiPersonAlert.hands} hands</span>}
             </div>
+<<<<<<< HEAD
+=======
             <button
               onClick={resumeAfterMultiPerson}
               style={{ marginTop: 20, padding: '10px 28px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: 'white', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}
             >
               Continue Signing
             </button>
+>>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
           </div>
         </div>
       )}
@@ -425,11 +456,19 @@ export default function KioskDashboard() {
         </div>
       )}
 
+<<<<<<< HEAD
+      {/* LEFT: Camera Feed */}
+      <div className="surface-card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>
+          <Camera size={14} color="var(--accent)" /> Camera Feed
+        </div>
+=======
         {/* LEFT: Camera Feed */}
         <div className="surface-card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>
             <Camera size={14} color="#111111" /> Camera Feed
           </div>
+>>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
 
         <div style={{ flex: 1, position: 'relative', background: '#000', margin: 8, borderRadius: 'var(--radius-sm)', overflow: 'hidden', minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {cameraError && (
@@ -521,6 +560,27 @@ export default function KioskDashboard() {
           </div>
         )}
 
+<<<<<<< HEAD
+        {/* Buttons */}
+        {sessionActive && detectionState === 'scanning' && !scannerMode && (
+          <div style={{ display: 'flex', gap: 8, margin: '0 8px 8px' }}>
+            <button className="btn" onClick={stopSigning} style={{ flex: 2, padding: 10, fontSize: 14, background: 'var(--danger)', color: 'white', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <Square size={16} fill="white" /> Done Signing
+            </button>
+            <button className="btn" onClick={handleStartCapture} style={{ flex: 1, padding: 10, fontSize: 14, background: 'var(--bg-surface)', color: 'var(--text-main)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <ScanLine size={16} /> Scan Doc
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* RIGHT: Recognition & Chat */}
+      <div className="surface-card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>
+          <HandMetal size={14} color="var(--accent)" /> Recognition & Chat
+        </div>
+
+=======
           {/* Buttons */}
           {sessionActive && detectionState === 'scanning' && !scannerMode && (
             <div style={{ display: 'flex', gap: 8, margin: '0 8px 8px' }}>
@@ -540,6 +600,7 @@ export default function KioskDashboard() {
             <HandMetal size={14} color="#111111" /> Recognition & Chat
           </div>
 
+>>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
           {/* DETECTED STATE — Intent selector */}
@@ -612,8 +673,13 @@ export default function KioskDashboard() {
                 <input type="text" value={typedText} onChange={e => setTypedText(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleSendText()}
                   placeholder="Type your message here..."
+<<<<<<< HEAD
+                  style={{ flex: 1, padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border-light)', fontSize: 14, background: 'var(--bg-surface)', outline: 'none', fontFamily: 'var(--font-sans)' }} />
+                <button className="btn btn-blue" onClick={handleSendText} disabled={!typedText.trim()} style={{ padding: '10px 18px', borderRadius: 10 }}>
+=======
                   style={{ flex: 1, padding: '10px 14px', borderRadius: 10, border: '1px solid #d0d0d0', fontSize: 14, background: '#efefef', outline: 'none', fontFamily: 'var(--font-sans)', color: '#111111' }} />
                 <button className="btn" onClick={handleSendText} disabled={!typedText.trim()} style={{ padding: '10px 18px', borderRadius: 10, background: '#111111', color: '#ffffff', border: 'none' }}>
+>>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
                   <Send size={16} />
                 </button>
               </div>
@@ -639,11 +705,19 @@ export default function KioskDashboard() {
               <div key={msg.id} className="animate-enter" style={{
                 padding: '10px 14px', borderRadius: 12, maxWidth: '85%',
                 alignSelf: msg.type === 'tx' ? 'flex-end' : msg.type === 'rx' ? 'flex-start' : 'center',
+<<<<<<< HEAD
+                background: msg.type === 'tx' ? 'var(--accent)' : msg.type === 'rx' ? 'var(--bg-subtle)' : 'transparent',
+                color: msg.type === 'tx' ? 'white' : 'var(--text-main)',
+                border: msg.type === 'sys' ? 'none' : `1px solid ${msg.type === 'tx' ? 'var(--accent)' : 'var(--border-light)'}`
+              }}>
+                <div style={{ fontSize: 10, fontWeight: 600, marginBottom: 3, opacity: 0.7, display: 'flex', alignItems: 'center', gap: 4 }}>
+=======
                 background: msg.type === 'tx' ? '#111111' : msg.type === 'rx' ? '#D6C2A8' : 'transparent',
                 color: msg.type === 'tx' ? '#ffffff' : msg.type === 'rx' ? '#1a1a1a' : 'var(--text-main)',
                 border: msg.type === 'sys' ? 'none' : `1px solid ${msg.type === 'tx' ? '#111111' : msg.type === 'rx' ? '#c4ae93' : 'var(--border-light)'}`
               }}>
                 <div style={{ fontSize: 10, fontWeight: 600, marginBottom: 3, opacity: 0.65, display: 'flex', alignItems: 'center', gap: 4 }}>
+>>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
                   {msg.inputMode === 'sign' && '🤟'}
                   {msg.inputMode === 'text' && '⌨️'}
                   {msg.inputMode === 'voice' && '🔊'}
@@ -654,11 +728,16 @@ export default function KioskDashboard() {
             ))}
             <div ref={chatEndRef} />
           </div>
+<<<<<<< HEAD
+        </div>
+      </div>
+=======
           </div>
         </div>
 
         </div> {/* end MAIN PANELS GRID */}
       </div> {/* end BODY */}
+>>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
 
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
