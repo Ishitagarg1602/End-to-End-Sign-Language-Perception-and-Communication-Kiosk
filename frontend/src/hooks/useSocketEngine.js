@@ -21,13 +21,11 @@ export function useSocketEngine(role) {
   const [waitingApproval, setWaitingApproval] = useState(false);
   const [sessionTaken, setSessionTaken] = useState(false);
 
-<<<<<<< HEAD
-=======
   // Ref so closure-based callbacks (setTimeout, socket handlers) can read latest sessionActive
   const sessionActiveRef = useRef(false);
   sessionActiveRef.current = sessionActive;
 
->>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
+
   // Detection
   const [detectionState, setDetectionState] = useState('idle');
   const [latestSign, setLatestSign] = useState(null);

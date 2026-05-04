@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSocketEngine } from '../hooks/useSocketEngine';
-import { Briefcase, Mic, Square, Send, Activity, LogOut, Check, X, MessageSquare, Clock, Power, FileScan, Download, FileText } from 'lucide-react';
+import { Briefcase, Mic, Square, Send, Activity, LogOut, Check, X, MessageSquare, Clock, Power, FileScan, Download, FileText, Shield, RefreshCw } from 'lucide-react';
 
 export default function EmployeeDashboard() {
   const {
@@ -27,6 +27,9 @@ export default function EmployeeDashboard() {
   const audioChunksRef = useRef([]);
 
   const [expandedImage, setExpandedImage] = useState(null);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [adminStatus, setAdminStatus] = useState(null);
+  const [adminResetting, setAdminResetting] = useState(false);
 
   useEffect(() => {
     if (transcribedText) {
@@ -126,6 +129,29 @@ export default function EmployeeDashboard() {
     endSession();
     setShowEndConfirm(false);
   };
+
+  const fetchAdminStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/status`);
+      const data = await res.json();
+      setAdminStatus(data);
+    } catch (e) {
+      setAdminStatus({ error: 'Could not reach backend' });
+    }
+  }, [API_BASE]);
+
+  const handleAdminReset = useCallback(async () => {
+    setAdminResetting(true);
+    try {
+      await fetch(`${API_BASE}/api/admin/reset_session`, { method: 'POST' });
+      await fetchAdminStatus();
+    } catch (e) {}
+    setAdminResetting(false);
+  }, [API_BASE, fetchAdminStatus]);
+
+  useEffect(() => {
+    if (showAdminPanel) fetchAdminStatus();
+  }, [showAdminPanel, fetchAdminStatus]);
 
   const generateTranscript = () => {
     const meta = sessionMetaRef.current;
@@ -256,7 +282,47 @@ export default function EmployeeDashboard() {
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
 
-      {/* End Session Confirm Dialog */}
+      {/* Admin Panel Modal */}
+      {showAdminPanel && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 6000, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
+          <div className="animate-enter surface-card" style={{ padding: 32, width: 480, maxWidth: '95vw' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Shield size={22} style={{ color: 'var(--accent)' }} />
+                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>Admin Panel</h3>
+              </div>
+              <button onClick={() => setShowAdminPanel(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={20} /></button>
+            </div>
+
+            {/* Live Status */}
+            <div style={{ background: 'var(--bg-subtle)', borderRadius: 12, padding: 16, marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>Live Backend Status</div>
+              {adminStatus ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {Object.entries(adminStatus).map(([k, v]) => (
+                    <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--border-light)' }}>
+                      <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>{k}</span>
+                      <span style={{ color: v === true ? 'var(--success)' : v === false ? 'var(--danger)' : 'var(--text-main)', fontWeight: 600 }}>{String(v)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : <div style={{ color: 'var(--text-faint)', fontSize: 13 }}>Loading...</div>}
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={fetchAdminStatus} className="btn btn-secondary" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <RefreshCw size={15} /> Refresh Status
+              </button>
+              <button onClick={handleAdminReset} disabled={adminResetting} className="btn" style={{ flex: 1, background: 'var(--danger)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: adminResetting ? 0.6 : 1 }}>
+                <Power size={15} /> {adminResetting ? 'Resetting...' : 'Reset All Sessions'}
+              </button>
+            </div>
+            <p style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 12, textAlign: 'center' }}>⚠ Reset will end all active sessions and notify the Kiosk.</p>
+          </div>
+        </div>
+      )}
+
       {showEndConfirm && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 5000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
           <div className="animate-enter surface-card" style={{ padding: 32, maxWidth: 380, textAlign: 'center' }}>
@@ -286,38 +352,24 @@ export default function EmployeeDashboard() {
         </div>
       )}
 
-      {/* Sidebar */}
-<<<<<<< HEAD
       <nav style={{ width: 72, background: 'var(--bg-surface)', borderRight: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 0', gap: 28, flexShrink: 0 }}>
         <div style={{ width: 40, height: 40, background: 'var(--primary)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', boxShadow: 'var(--shadow-md)' }}>
           <Briefcase size={20} />
         </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12, background: 'var(--bg-subtle)', color: 'var(--accent)', cursor: 'pointer' }}>
-=======
-      <nav style={{ width: 72, background: '#0d0d0d', borderRight: '1px solid #1f1f1f', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 0', gap: 28, flexShrink: 0 }}>
-        <div style={{ width: 40, height: 40, background: '#2a2a2a', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.85)', boxShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
-          <Briefcase size={20} />
-        </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12, background: 'rgba(255,255,255,0.08)', color: '#D6C2A8', cursor: 'pointer' }}>
->>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
             <Activity size={20} />
+          </div>
+          <div title="Admin Panel" onClick={() => setShowAdminPanel(true)} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12, background: 'var(--bg-subtle)', color: 'var(--text-muted)', cursor: 'pointer' }}>
+            <Shield size={20} />
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-<<<<<<< HEAD
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: isConnected ? 'var(--success)' : 'var(--danger)', boxShadow: isConnected ? '0 0 8px var(--success)' : 'none' }} />
             <span style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: 0.5 }}>{isConnected ? 'LIVE' : 'OFF'}</span>
           </div>
           <div onClick={() => navigate('/login')} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12, color: 'var(--danger)', cursor: 'pointer' }}>
-=======
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: isConnected ? '#4ade80' : '#f87171', boxShadow: isConnected ? '0 0 6px #4ade80' : 'none' }} />
-            <span style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5 }}>{isConnected ? 'LIVE' : 'OFF'}</span>
-          </div>
-          <div onClick={() => navigate('/login')} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12, color: 'rgba(255,255,255,0.45)', cursor: 'pointer' }}>
->>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
             <LogOut size={20} />
           </div>
         </div>
@@ -326,27 +378,17 @@ export default function EmployeeDashboard() {
       {/* Main Workspace */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-        {/* Header */}
-<<<<<<< HEAD
         <header style={{ padding: '16px 36px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <h1 className="heading-display" style={{ fontSize: 18, letterSpacing: 0.5 }}>ISL Banking Interface</h1>
             {sessionActive && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 20, background: 'var(--accent-light)', color: 'var(--accent)', fontSize: 11, fontWeight: 700 }}>
-=======
-        <header style={{ padding: '16px 36px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #2a2a2a', background: '#1a1a1a', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <h1 className="heading-display" style={{ fontSize: 18, letterSpacing: 0.5, color: '#ffffff', fontWeight: 700 }}>ISL Banking Interface</h1>
-            {sessionActive && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 20, background: 'rgba(255,255,255,0.1)', color: '#D6C2A8', fontSize: 11, fontWeight: 700 }}>
->>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
                 <Clock size={12} /> {elapsed}
               </div>
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {sessionActive && (
-<<<<<<< HEAD
               <button className="btn" onClick={() => setShowEndConfirm(true)} style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid rgba(220,38,38,0.2)', padding: '6px 16px', fontSize: 11 }}>
                 <Power size={14} /> End Session
               </button>
@@ -354,15 +396,6 @@ export default function EmployeeDashboard() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 16px', borderRadius: 30, background: isConnected ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${isConnected ? 'rgba(5,150,105,0.2)' : 'rgba(220,38,38,0.2)'}` }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: isConnected ? 'var(--success)' : 'var(--danger)', boxShadow: isConnected ? '0 0 10px var(--success)' : 'none' }} />
               <span style={{ fontSize: 11, fontWeight: 700, color: isConnected ? 'var(--success)' : 'var(--danger)', letterSpacing: 1, textTransform: 'uppercase' }}>
-=======
-              <button className="btn" onClick={() => setShowEndConfirm(true)} style={{ background: 'rgba(220,38,38,0.15)', color: '#f87171', border: '1px solid rgba(220,38,38,0.3)', padding: '6px 16px', fontSize: 11 }}>
-                <Power size={14} /> End Session
-              </button>
-            )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 18px', borderRadius: 30, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}>
-              <div style={{ width: 7, height: 7, borderRadius: '50%', background: isConnected ? '#4ade80' : '#f87171', boxShadow: isConnected ? '0 0 6px #4ade80' : 'none' }} />
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#ffffff', letterSpacing: 1, textTransform: 'uppercase' }}>
->>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
                 {isConnected ? 'Data Link Secure' : 'Offline'}
               </span>
             </div>
@@ -404,12 +437,7 @@ export default function EmployeeDashboard() {
                 </div>
               )}
 
-              {/* Message Display */}
-<<<<<<< HEAD
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', background: 'var(--bg-page)', borderRadius: 16, border: '1px dashed var(--border-light)' }}>
-=======
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', background: '#e0e0e0', borderRadius: 16, border: '1px solid #cccccc', boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.06)' }}>
->>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
                 {lastKioskMsg ? (
                   <div className="animate-enter">
                     <div style={{ fontSize: 32, fontWeight: 700, lineHeight: 1.3, color: 'var(--text-main)', marginBottom: 20, padding: '0 20px' }}>
@@ -430,18 +458,8 @@ export default function EmployeeDashboard() {
                     </div>
                   </div>
                 ) : (
-<<<<<<< HEAD
                   <div style={{ fontSize: 15, color: 'var(--text-faint)', fontWeight: 500, letterSpacing: 2, textTransform: 'uppercase' }}>
                     {sessionActive ? 'Waiting for user message…' : 'No Signal Detected'}
-=======
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#222222', letterSpacing: 2, textTransform: 'uppercase' }}>
-                      {sessionActive ? 'Waiting for user message...' : 'No Signal Detected'}
-                    </div>
-                    {!sessionActive && (
-                      <div style={{ fontSize: 12, color: '#777777', fontWeight: 400, letterSpacing: 0.5 }}>Waiting for user to begin sign language...</div>
-                    )}
->>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
                   </div>
                 )}
               </div>
@@ -455,9 +473,6 @@ export default function EmployeeDashboard() {
             </div>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 20, overflow: 'hidden' }}>
 
-              {/* Input Bar */}
-              <div style={{ marginBottom: 20, flexShrink: 0 }}>
-<<<<<<< HEAD
                 <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-faint)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6, textAlign: 'right' }}>
                   Voice-to-Text Active
                 </div>
@@ -471,21 +486,6 @@ export default function EmployeeDashboard() {
                     style={{ width: 48, height: 48, borderRadius: 12, border: `1px solid ${isMicRecording ? 'var(--danger)' : 'var(--border-light)'}`, background: isMicRecording ? 'var(--danger-bg)' : 'var(--bg-surface)', color: isMicRecording ? 'var(--danger)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.3s', flexShrink: 0 }}>
                     {isTranscribing ? (
                       <div style={{ width: 18, height: 18, border: '2px solid var(--text-muted)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-=======
-                <div style={{ fontSize: 10, fontWeight: 600, color: '#999999', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6, textAlign: 'right' }}>
-                  Voice-to-Text Active
-                </div>
-                <div style={{ display: 'flex', gap: 10, background: '#e0e0e0', padding: 8, borderRadius: 16, border: '1px solid #cccccc', alignItems: 'center' }}>
-                  <input type="text" value={inputText} onChange={e => setInputText(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleSend()}
-                    placeholder="Type response or use microphone..."
-                    style={{ flex: 1, background: 'transparent', border: 'none', padding: '0 16px', fontSize: 15, outline: 'none', boxShadow: 'none', color: '#333333' }} />
-
-                  <button onClick={toggleMic} disabled={isTranscribing}
-                    style={{ width: 48, height: 48, borderRadius: 12, border: `1px solid ${isMicRecording ? 'var(--danger)' : '#bbbbbb'}`, background: isMicRecording ? 'var(--danger-bg)' : '#f0f0f0', color: isMicRecording ? 'var(--danger)' : '#555555', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.3s', flexShrink: 0 }}>
-                    {isTranscribing ? (
-                      <div style={{ width: 18, height: 18, border: '2px solid #999', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
->>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
                     ) : isMicRecording ? (
                       <Square size={20} fill="currentColor" />
                     ) : (
@@ -493,28 +493,17 @@ export default function EmployeeDashboard() {
                     )}
                   </button>
 
-<<<<<<< HEAD
                   <button className="btn btn-blue" onClick={handleSend} style={{ height: 48, padding: '0 20px', borderRadius: 12 }}>
-=======
-                  <button className="btn" onClick={handleSend} style={{ height: 48, padding: '0 20px', borderRadius: 12, background: '#111111', color: '#ffffff', border: 'none' }}>
->>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
                     <Send size={18} />
                   </button>
                 </div>
               </div>
 
               {/* Quick Replies */}
-<<<<<<< HEAD
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid var(--border-light)', flexShrink: 0 }}>
                 {quickReplies.map(text => (
                   <button key={text} onClick={() => quickReply(text)}
                     style={{ padding: '8px 16px', borderRadius: 30, background: 'var(--bg-surface)', border: '1px solid var(--border-light)', color: 'var(--text-muted)', fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: '0.2s', fontFamily: 'var(--font-sans)' }}>
-=======
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid #e5e5e5', flexShrink: 0 }}>
-                {quickReplies.map(text => (
-                  <button key={text} onClick={() => quickReply(text)}
-                    style={{ padding: '8px 16px', borderRadius: 30, background: '#D6C2A8', border: '1px solid #c4ae93', color: '#1a1a1a', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: '0.2s', fontFamily: 'var(--font-sans)', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
->>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
                     {text}
                   </button>
                 ))}
@@ -571,14 +560,7 @@ export default function EmployeeDashboard() {
         </div>
       </div>
 
-<<<<<<< HEAD
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-=======
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        body { background-color: #f5f5f5; }
-      `}</style>
->>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
       
       {/* Expanded Image Modal */}
       {expandedImage && (

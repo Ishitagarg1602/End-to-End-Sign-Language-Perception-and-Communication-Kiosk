@@ -697,16 +697,20 @@ async def join_kiosk(sid, data=None):
     await sio.enter_room(sid, 'kiosk')
     state.kiosk_sids.add(sid)
     logger.info(f"Kiosk joined: {sid}")
-    # Fully reset session state so stuck sessions don't block new ones
-    state.detection_state = 'idle'
-    state.frame_buffer = []
-    state.user_in_zone = False
-    state.last_zone_time = 0.0
-    state.current_session_id = None
-    state.session_accepted_by_employee = False
-    state.assigned_employee_sid = None
-    state.detected_words = []
-    state.session_messages = []
+    # Only fully reset if no employee has accepted the session yet.
+    # If a session is actively in progress, let it continue.
+    if not state.session_accepted_by_employee:
+        state.detection_state = 'idle'
+        state.frame_buffer = []
+        state.user_in_zone = False
+        state.last_zone_time = 0.0
+        state.current_session_id = None
+        state.assigned_employee_sid = None
+        state.detected_words = []
+        state.session_messages = []
+        logger.info("Kiosk joined with no active session — state fully reset.")
+    else:
+        logger.info(f"Kiosk rejoined mid-session ({state.current_session_id}) — preserving session state.")
     await sio.emit('status', {'message': 'Connected to kiosk', 'camera': state.camera_running}, room=sid)
 
 
@@ -1739,9 +1743,34 @@ async def api_status():
         "templates_loaded": len(state.templates) > 0,
         "classes_loaded": len(state.classes) > 0,
         "session_id": state.current_session_id,
+        "detection_state": state.detection_state,
         "connected_kiosks": len(state.kiosk_sids),
         "connected_employees": len(state.employee_sids),
+        "session_accepted": state.session_accepted_by_employee,
+        "user_in_zone": state.user_in_zone,
     }
+
+@fastapi_app.post("/api/admin/reset_session")
+async def admin_reset_session():
+    """Admin endpoint to force-reset all session state. Useful when sessions get stuck."""
+    if state.current_session_id:
+        log_session_end(state.current_session_id)
+    state.current_session_id = None
+    state.detection_state = 'idle'
+    state.frame_buffer = []
+    state.user_in_zone = False
+    state.last_zone_time = 0.0
+    state.session_accepted_by_employee = False
+    state.assigned_employee_sid = None
+    state.detected_words = []
+    state.session_messages = []
+    state.last_predicted_word = None
+    # Notify all connected clients
+    await sio.emit('session_status', {'status': 'ended'}, room='kiosk')
+    await sio.emit('session_status', {'status': 'ended'}, room='employee')
+    await sio.emit('admin_reset', {'message': 'Session reset by admin'})
+    logger.info("Admin forced session reset.")
+    return {"success": True, "message": "All sessions have been reset."}
 
 @fastapi_app.get("/api/templates")
 async def api_templates():
