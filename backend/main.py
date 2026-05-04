@@ -98,14 +98,14 @@ async def disconnect(sid):
 @sio.on(evt.JOIN_KIOSK)
 async def on_join_kiosk(sid, data=None):
     """Kiosk joins its room."""
-    sio.enter_room(sid, evt.ROOM_KIOSK)
+    await sio.enter_room(sid, evt.ROOM_KIOSK)
     logger.info(f"Kiosk joined: {sid}")
 
 
 @sio.on(evt.JOIN_EMPLOYEE)
 async def on_join_employee(sid, data=None):
     """Employee joins their room and receives any pending session request."""
-    sio.enter_room(sid, evt.ROOM_EMPLOYEE)
+    await sio.enter_room(sid, evt.ROOM_EMPLOYEE)
     logger.info(f"Employee joined: {sid}")
     # Replay any pending session request so employee doesn't miss it
     pending = None
