@@ -8,7 +8,11 @@ export default function KioskDashboard() {
     socket, isConnected, sessionId, sessionActive, waitingApproval,
     detectionState, latestSign, confirmedWords, messages,
     employeeMessage, multiPersonAlert,
+<<<<<<< HEAD
     stopSigning, confirmSign, retrySign, endSession, dismissEmployeeMessage, sendTextMessage, scanDocument
+=======
+    stopSigning, confirmSign, retrySign, endSession, dismissEmployeeMessage, sendTextMessage, scanDocument, resumeAfterMultiPerson
+>>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
   } = useSocketEngine('kiosk');
 
   const videoRef = useRef(null);
@@ -23,6 +27,15 @@ export default function KioskDashboard() {
   const [scannerMode, setScannerMode] = useState(null); // null | 'capturing' | 'gallery'
   const MAX_SCAN_PAGES = 5;
 
+<<<<<<< HEAD
+=======
+  // Onboarding state
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingCompleted, setOnboardingCompleted] = useState(false);
+  const [onboardingName, setOnboardingName] = useState('');
+  const [onboardingDOB, setOnboardingDOB] = useState('');
+
+>>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
   // Typewriter effect for employee message
   const [displayedText, setDisplayedText] = useState('');
   const [typewriterDone, setTypewriterDone] = useState(false);
@@ -132,6 +145,32 @@ export default function KioskDashboard() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+<<<<<<< HEAD
+=======
+  // Trigger onboarding when session becomes active
+  useEffect(() => {
+    if (sessionActive && !onboardingCompleted) {
+      setShowOnboarding(true);
+    }
+    if (!sessionActive) {
+      setShowOnboarding(false);
+      setOnboardingCompleted(false);
+      setOnboardingName('');
+      setOnboardingDOB('');
+    }
+  }, [sessionActive, onboardingCompleted]);
+
+  const handleOnboardingSubmit = (e) => {
+    e.preventDefault();
+    if (!onboardingName.trim() || !onboardingDOB) return;
+    
+    setShowOnboarding(false);
+    setOnboardingCompleted(true);
+    
+    sendTextMessage(`User details received: ${onboardingName.trim()}, DOB: ${onboardingDOB}`);
+  };
+
+>>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
   const handleConfirm = () => {
     if (!latestSign) return;
     confirmSign(latestSign.word, curSentence, latestSign.confidence, selectedIntent?.label);
@@ -206,6 +245,7 @@ export default function KioskDashboard() {
   const status = statusConfig[detectionState] || statusConfig.idle;
 
   return (
+<<<<<<< HEAD
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', padding: '12px', height: '100vh', overflow: 'hidden', position: 'relative' }}>
 
       {/* WAITING APPROVAL OVERLAY */}
@@ -221,6 +261,145 @@ export default function KioskDashboard() {
           <p style={{ fontSize: 14, color: 'var(--text-muted)', maxWidth: 400, textAlign: 'center', lineHeight: 1.6 }}>
             Please wait while a bank employee accepts your session.
           </p>
+=======
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', position: 'relative' }}>
+
+      {/* TOP HEADER BAR */}
+      <header style={{ flexShrink: 0, background: '#1a1a1a', borderBottom: '1px solid #2a2a2a', padding: '0 24px', height: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 100 }}>
+        <span style={{ color: '#ffffff', fontWeight: 700, fontSize: 15, letterSpacing: 0.3, fontFamily: 'var(--font-sans)' }}>ISL Banking Interface</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 16px', borderRadius: 30, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}>
+          <div style={{ width: 7, height: 7, borderRadius: '50%', background: isConnected ? '#4ade80' : '#f87171', boxShadow: isConnected ? '0 0 6px #4ade80' : 'none' }} />
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#ffffff', letterSpacing: 1, textTransform: 'uppercase' }}>{isConnected ? 'Online' : 'Offline'}</span>
+        </div>
+      </header>
+
+      {/* BODY: sidebar + panels */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+
+        {/* LEFT SIDEBAR */}
+        <nav style={{ width: 60, flexShrink: 0, background: '#0d0d0d', borderRight: '1px solid #1f1f1f', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 0', gap: 24 }}>
+          <div style={{ width: 36, height: 36, background: '#2a2a2a', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.8)' }}>
+            <Camera size={18} />
+          </div>
+          <div style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, background: 'rgba(255,255,255,0.08)', color: '#D6C2A8' }}>
+            <HandMetal size={18} />
+          </div>
+          <div style={{ flex: 1 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%', background: isConnected ? '#4ade80' : '#f87171' }} />
+            <span style={{ fontSize: 8, fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5 }}>{isConnected ? 'LIVE' : 'OFF'}</span>
+          </div>
+        </nav>
+
+        {/* MAIN PANELS GRID */}
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', padding: '12px', overflow: 'hidden', position: 'relative' }}>
+
+      {/* WAITING APPROVAL OVERLAY */}
+      {waitingApproval && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 3000,
+          background: '#111111',
+          backgroundImage: `repeating-linear-gradient(-45deg, transparent, transparent 38px, rgba(255,255,255,0.018) 38px, rgba(255,255,255,0.018) 40px), repeating-linear-gradient(45deg, transparent, transparent 38px, rgba(255,255,255,0.018) 38px, rgba(255,255,255,0.018) 40px)`,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {/* Dark top bar inside overlay */}
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 48, background: '#1a1a1a', borderBottom: '1px solid #2a2a2a', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px' }}>
+            <span style={{ color: '#ffffff', fontWeight: 700, fontSize: 15, letterSpacing: 0.3, fontFamily: 'var(--font-sans)' }}>ISL Banking Interface</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 16px', borderRadius: 30, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}>
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: isConnected ? '#4ade80' : '#f87171', boxShadow: isConnected ? '0 0 6px #4ade80' : 'none' }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#ffffff', letterSpacing: 1, textTransform: 'uppercase' }}>{isConnected ? 'Online' : 'Offline'}</span>
+            </div>
+          </div>
+
+          {/* White card */}
+          <div className="animate-enter" style={{
+            background: '#ffffff',
+            borderRadius: 20,
+            boxShadow: '0 32px 64px rgba(0,0,0,0.5)',
+            width: '90%', maxWidth: 420,
+            overflow: 'hidden',
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+          }}>
+            {/* Image section */}
+            <div style={{ width: '100%', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '36px 0 28px' }}>
+              <img
+                src="/src/assets/hero.png"
+                alt="Waiting illustration"
+                style={{ width: 160, height: 160, objectFit: 'contain', borderRadius: 12 }}
+              />
+            </div>
+
+            {/* Text section */}
+            <div style={{ padding: '28px 36px 36px', textAlign: 'center', width: '100%', boxSizing: 'border-box' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 10 }}>
+                <Loader2 size={18} className="spin-icon" style={{ color: '#111111', flexShrink: 0 }} />
+                <span style={{ fontSize: 18, fontWeight: 700, color: '#0d0d0d', letterSpacing: -0.2 }}>Connecting to bank representative</span>
+              </div>
+              <p style={{ fontSize: 13.5, color: '#888888', lineHeight: 1.65, margin: 0 }}>
+                Please wait while a bank employee accepts your session.
+              </p>
+              {/* Animated loading dots */}
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 24 }}>
+                {[0, 1, 2].map(i => (
+                  <div key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: '#D6C2A8', animation: `waitDot 1.2s ease-in-out ${i * 0.2}s infinite` }} />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <style>{`
+            @keyframes waitDot {
+              0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+              40% { transform: scale(1); opacity: 1; }
+            }
+          `}</style>
+        </div>
+      )}
+
+
+      {/* ONBOARDING OVERLAY */}
+      {showOnboarding && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 4000, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="animate-enter" style={{ background: 'var(--bg-surface, white)', padding: '40px', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', border: '1px solid var(--border-light, #e5e7eb)', width: '90%', maxWidth: '440px' }}>
+            <h2 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: 700, color: 'var(--text-main, #111827)', textAlign: 'center' }}>
+              Verify Your Identity
+            </h2>
+            <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: 'var(--text-muted, #6b7280)', textAlign: 'center', lineHeight: 1.5 }}>
+              Please enter your basic details to continue
+            </p>
+            <form onSubmit={handleOnboardingSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main, #374151)' }}>Full Name</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={onboardingName} 
+                  onChange={e => setOnboardingName(e.target.value)}
+                  placeholder="e.g. John Doe"
+                  style={{ padding: '12px 16px', borderRadius: '12px', border: '1px solid var(--border-light, #d1d5db)', fontSize: '15px', outline: 'none', background: 'var(--bg-main, #ffffff)', color: 'var(--text-main, #111827)' }} 
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main, #374151)' }}>Date of Birth</label>
+                <input 
+                  type="date" 
+                  required 
+                  value={onboardingDOB} 
+                  onChange={e => setOnboardingDOB(e.target.value)}
+                  style={{ padding: '12px 16px', borderRadius: '12px', border: '1px solid var(--border-light, #d1d5db)', fontSize: '15px', outline: 'none', background: 'var(--bg-main, #ffffff)', color: 'var(--text-main, #111827)' }} 
+                />
+              </div>
+              <button 
+                type="submit" 
+                disabled={!onboardingName.trim() || !onboardingDOB}
+                className="btn btn-primary" 
+                style={{ marginTop: '8px', padding: '14px', fontSize: '16px', borderRadius: '12px', width: '100%', fontWeight: 600, cursor: (!onboardingName.trim() || !onboardingDOB) ? 'not-allowed' : 'pointer', opacity: (!onboardingName.trim() || !onboardingDOB) ? 0.6 : 1 }}
+              >
+                Continue
+              </button>
+            </form>
+          </div>
+>>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
         </div>
       )}
 
@@ -237,6 +416,15 @@ export default function KioskDashboard() {
               {multiPersonAlert.faces > 0 && <span>👤 {multiPersonAlert.faces} faces</span>}
               {multiPersonAlert.hands > 0 && <span>✋ {multiPersonAlert.hands} hands</span>}
             </div>
+<<<<<<< HEAD
+=======
+            <button
+              onClick={resumeAfterMultiPerson}
+              style={{ marginTop: 20, padding: '10px 28px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: 'white', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}
+            >
+              Continue Signing
+            </button>
+>>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
           </div>
         </div>
       )}
@@ -268,11 +456,19 @@ export default function KioskDashboard() {
         </div>
       )}
 
+<<<<<<< HEAD
       {/* LEFT: Camera Feed */}
       <div className="surface-card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>
           <Camera size={14} color="var(--accent)" /> Camera Feed
         </div>
+=======
+        {/* LEFT: Camera Feed */}
+        <div className="surface-card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>
+            <Camera size={14} color="#111111" /> Camera Feed
+          </div>
+>>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
 
         <div style={{ flex: 1, position: 'relative', background: '#000', margin: 8, borderRadius: 'var(--radius-sm)', overflow: 'hidden', minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {cameraError && (
@@ -364,6 +560,7 @@ export default function KioskDashboard() {
           </div>
         )}
 
+<<<<<<< HEAD
         {/* Buttons */}
         {sessionActive && detectionState === 'scanning' && !scannerMode && (
           <div style={{ display: 'flex', gap: 8, margin: '0 8px 8px' }}>
@@ -383,6 +580,27 @@ export default function KioskDashboard() {
           <HandMetal size={14} color="var(--accent)" /> Recognition & Chat
         </div>
 
+=======
+          {/* Buttons */}
+          {sessionActive && detectionState === 'scanning' && !scannerMode && (
+            <div style={{ display: 'flex', gap: 8, margin: '0 8px 8px' }}>
+              <button className="btn" onClick={stopSigning} style={{ flex: 2, padding: 10, fontSize: 14, background: 'var(--danger)', color: 'white', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <Square size={16} fill="white" /> Done Signing
+              </button>
+              <button className="btn" onClick={handleStartCapture} style={{ flex: 1, padding: 10, fontSize: 14, background: 'var(--bg-surface)', color: 'var(--text-main)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <ScanLine size={16} /> Scan Doc
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT: Recognition & Chat */}
+        <div className="surface-card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>
+            <HandMetal size={14} color="#111111" /> Recognition & Chat
+          </div>
+
+>>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
           {/* DETECTED STATE — Intent selector */}
@@ -455,8 +673,13 @@ export default function KioskDashboard() {
                 <input type="text" value={typedText} onChange={e => setTypedText(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleSendText()}
                   placeholder="Type your message here..."
+<<<<<<< HEAD
                   style={{ flex: 1, padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border-light)', fontSize: 14, background: 'var(--bg-surface)', outline: 'none', fontFamily: 'var(--font-sans)' }} />
                 <button className="btn btn-blue" onClick={handleSendText} disabled={!typedText.trim()} style={{ padding: '10px 18px', borderRadius: 10 }}>
+=======
+                  style={{ flex: 1, padding: '10px 14px', borderRadius: 10, border: '1px solid #d0d0d0', fontSize: 14, background: '#efefef', outline: 'none', fontFamily: 'var(--font-sans)', color: '#111111' }} />
+                <button className="btn" onClick={handleSendText} disabled={!typedText.trim()} style={{ padding: '10px 18px', borderRadius: 10, background: '#111111', color: '#ffffff', border: 'none' }}>
+>>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
                   <Send size={16} />
                 </button>
               </div>
@@ -482,11 +705,19 @@ export default function KioskDashboard() {
               <div key={msg.id} className="animate-enter" style={{
                 padding: '10px 14px', borderRadius: 12, maxWidth: '85%',
                 alignSelf: msg.type === 'tx' ? 'flex-end' : msg.type === 'rx' ? 'flex-start' : 'center',
+<<<<<<< HEAD
                 background: msg.type === 'tx' ? 'var(--accent)' : msg.type === 'rx' ? 'var(--bg-subtle)' : 'transparent',
                 color: msg.type === 'tx' ? 'white' : 'var(--text-main)',
                 border: msg.type === 'sys' ? 'none' : `1px solid ${msg.type === 'tx' ? 'var(--accent)' : 'var(--border-light)'}`
               }}>
                 <div style={{ fontSize: 10, fontWeight: 600, marginBottom: 3, opacity: 0.7, display: 'flex', alignItems: 'center', gap: 4 }}>
+=======
+                background: msg.type === 'tx' ? '#111111' : msg.type === 'rx' ? '#D6C2A8' : 'transparent',
+                color: msg.type === 'tx' ? '#ffffff' : msg.type === 'rx' ? '#1a1a1a' : 'var(--text-main)',
+                border: msg.type === 'sys' ? 'none' : `1px solid ${msg.type === 'tx' ? '#111111' : msg.type === 'rx' ? '#c4ae93' : 'var(--border-light)'}`
+              }}>
+                <div style={{ fontSize: 10, fontWeight: 600, marginBottom: 3, opacity: 0.65, display: 'flex', alignItems: 'center', gap: 4 }}>
+>>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
                   {msg.inputMode === 'sign' && '🤟'}
                   {msg.inputMode === 'text' && '⌨️'}
                   {msg.inputMode === 'voice' && '🔊'}
@@ -497,8 +728,16 @@ export default function KioskDashboard() {
             ))}
             <div ref={chatEndRef} />
           </div>
+<<<<<<< HEAD
         </div>
       </div>
+=======
+          </div>
+        </div>
+
+        </div> {/* end MAIN PANELS GRID */}
+      </div> {/* end BODY */}
+>>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
 
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
