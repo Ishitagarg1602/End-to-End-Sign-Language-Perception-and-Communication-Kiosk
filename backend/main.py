@@ -186,7 +186,7 @@ async def on_video_frame(sid, data):
                 sess = session_mgr.create_session()
                 detection_states[sid] = 'waiting_approval'
                 frame_buffers[sid] = []
-                await sio.emit(evt.USER_DETECTED, evt.user_detected_payload(sess.session_id), room=evt.ROOM_KIOSK)
+                await sio.emit(evt.USER_DETECTED, evt.user_detected_payload(sess.session_id), room=sid)
                 await sio.emit(evt.SESSION_REQUEST, {'session_id': sess.session_id}, room=evt.ROOM_EMPLOYEE)
         
         elif state == 'scanning':
