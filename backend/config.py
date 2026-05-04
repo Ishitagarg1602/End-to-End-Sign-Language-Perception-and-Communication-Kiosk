@@ -73,7 +73,7 @@ NO_HAND_TIMEOUT = 3.0             # Seconds before no_hand event
 SEQUENCE_BUFFER_SIZE = 45         # Frames to buffer before prediction
 
 # ─── Model Training ─────────────────────────────────────────────────────────
-NUM_CLASSES = 61
+NUM_CLASSES = 78
 BATCH_SIZE = 32
 MAX_EPOCHS = 150
 LEARNING_RATE = 0.001
