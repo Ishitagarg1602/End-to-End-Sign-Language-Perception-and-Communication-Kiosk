@@ -109,15 +109,11 @@ export function useSocketEngine(role) {
       if (role === 'kiosk') {
         setMultiPersonAlert(data);
         setDetectionState('paused');
-<<<<<<< HEAD
-        setTimeout(() => setMultiPersonAlert(null), 3500);
-=======
         // Auto-recovery: clear alert and resume signing after timeout
         setTimeout(() => {
           setMultiPersonAlert(null);
           if (sessionActiveRef.current) setDetectionState('scanning');
         }, 3500);
->>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
       }
     });
 
@@ -345,15 +341,11 @@ export function useSocketEngine(role) {
     }
   }, [sessionId]);
 
-<<<<<<< HEAD
-=======
   // Manual resume after multi-person alert is dismissed by the user
   const resumeAfterMultiPerson = useCallback(() => {
     setMultiPersonAlert(null);
     if (sessionActiveRef.current) setDetectionState('scanning');
   }, []);
-
->>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
   return {
     socket: socketRef.current,
     isConnected,
@@ -382,10 +374,7 @@ export function useSocketEngine(role) {
     sendTextMessage,
     sendVoiceAudio,
     scanDocument,
-<<<<<<< HEAD
-=======
     resumeAfterMultiPerson,
->>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
     API_BASE,
   };
 }
