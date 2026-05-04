@@ -627,9 +627,10 @@ async def camera_loop():
             # Buffer frames when session is active and detecting
             if state.user_in_zone and state.detection_state == 'detecting' and state.session_accepted_by_employee:
                 if hands_visible:
-                    features = wrist_centering(current_features)
-                    features = scale_normalization(features)
-                    state.frame_buffer.append(features)
+                    # Do NOT apply wrist_centering or scale_normalization here!
+                    # The training data (splits/*.npy) was raw landmarks with no normalization.
+                    # Applying normalization here would cause a train/inference mismatch.
+                    state.frame_buffer.append(current_features)
                     state.last_hand_time = now
 
                 if len(state.frame_buffer) > 60:
