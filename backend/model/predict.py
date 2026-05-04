@@ -59,23 +59,28 @@ class Predictor:
         if suffix == '.h5':
             import tensorflow as tf
             
-            # Keras 3 .h5 deserialization bug patch
-            class CustomBN(tf.keras.layers.BatchNormalization):
-                def __init__(self, **kwargs):
-                    kwargs.pop('renorm', None)
-                    kwargs.pop('renorm_clipping', None)
-                    kwargs.pop('renorm_momentum', None)
-                    super().__init__(**kwargs)
+            # Universal Keras 3 .h5 deserialization bug patch
+            def clean_layer(LayerClass, bad_kwargs):
+                class CustomLayer(LayerClass):
+                    def __init__(self, **kwargs):
+                        for k in bad_kwargs:
+                            kwargs.pop(k, None)
+                        super().__init__(**kwargs)
+                return CustomLayer
 
-            class CustomMHA(tf.keras.layers.MultiHeadAttention):
-                def __init__(self, **kwargs):
-                    kwargs.pop('use_gate', None)
-                    super().__init__(**kwargs)
+            custom_objects = {
+                'BatchNormalization': clean_layer(tf.keras.layers.BatchNormalization, ['renorm', 'renorm_clipping', 'renorm_momentum']),
+                'MultiHeadAttention': clean_layer(tf.keras.layers.MultiHeadAttention, ['use_gate']),
+                'Dense': clean_layer(tf.keras.layers.Dense, ['quantization_config']),
+                'Conv1D': clean_layer(tf.keras.layers.Conv1D, ['quantization_config']),
+                'LSTM': clean_layer(tf.keras.layers.LSTM, ['quantization_config']),
+                'Bidirectional': clean_layer(tf.keras.layers.Bidirectional, ['quantization_config']),
+                'Dropout': clean_layer(tf.keras.layers.Dropout, ['quantization_config']),
+                'LayerNormalization': clean_layer(tf.keras.layers.LayerNormalization, ['quantization_config']),
+                'MaxPooling1D': clean_layer(tf.keras.layers.MaxPooling1D, ['quantization_config'])
+            }
 
-            self.model = tf.keras.models.load_model(str(path), custom_objects={
-                'BatchNormalization': CustomBN,
-                'MultiHeadAttention': CustomMHA
-            })
+            self.model = tf.keras.models.load_model(str(path), custom_objects=custom_objects)
             self.model_type = 'cnn_lstm'
             print(f"[Predictor] Loaded CNN-LSTM model from {path}")
 
