@@ -1129,11 +1129,7 @@ async def generate_nlp_intents(word: str, count: int = 10) -> list:
     if cache_key in _llm_intent_cache:
         return _llm_intent_cache[cache_key]
     
-<<<<<<< HEAD
-    api_key = os.environ.get('GROQ_API_KEY', '')
-=======
     api_key = os.environ.get('GROQ_API_KEY', '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')
->>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
     if not api_key:
         # Fallback to offline keyword similarity if no key
         result = _offline_intent_fallback(word)
@@ -1195,11 +1191,7 @@ async def analyze_scanned_document(images) -> str:
     if isinstance(images, str):
         images = [images]
     
-<<<<<<< HEAD
-    api_key = os.environ.get('GROQ_API_KEY', '')
-=======
     api_key = os.environ.get('GROQ_API_KEY', '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')
->>>>>>> 6d29a844d173a8e5dbdcaef04d30b440e24fdd5a
     if not api_key:
         return f"{len(images)} image(s) received (AI analysis unavailable without API key)."
     
