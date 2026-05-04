@@ -181,7 +181,7 @@ async def on_video_frame(sid, data):
                 break
         
         if state == 'idle' or session_id is None:
-            in_zone, _ = presence_detector.detect(frame)
+            in_zone, _ = await asyncio.to_thread(presence_detector.detect, frame)
             if in_zone:
                 sess = session_mgr.create_session()
                 detection_states[sid] = 'waiting_approval'
@@ -190,7 +190,7 @@ async def on_video_frame(sid, data):
                 await sio.emit(evt.SESSION_REQUEST, {'session_id': sess.session_id}, room=evt.ROOM_EMPLOYEE)
         
         elif state == 'scanning':
-            features = landmark_extractor.extract(frame)
+            features = await asyncio.to_thread(landmark_extractor.extract, frame)
             if features is not None:
                 if sid not in frame_buffers: frame_buffers[sid] = []
                 frame_buffers[sid].append(features)
@@ -215,7 +215,7 @@ async def on_stop_signing(sid, data=None):
     normalized = normalize_sequence(seq_np)
     standardized = standardize_sequence(normalized, target=30)
     
-    result = predictor.predict(standardized)
+    result = await asyncio.to_thread(predictor.predict, standardized)
     word = result.get('word', 'unknown')
     confidence = result.get('confidence', 0.0)
     
