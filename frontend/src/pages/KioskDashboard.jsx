@@ -371,7 +371,6 @@ export default function KioskDashboard() {
               </button>
             </form>
           </div>
-          </div>
         </div>
       )}
 
@@ -430,7 +429,6 @@ export default function KioskDashboard() {
         <div className="surface-card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>
             <Camera size={14} color="#111111" /> Camera Feed
-          </div>
           </div>
 
         <div style={{ flex: 1, position: 'relative', background: '#000', margin: 8, borderRadius: 'var(--radius-sm)', overflow: 'hidden', minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -543,7 +541,7 @@ export default function KioskDashboard() {
             <HandMetal size={14} color="#111111" /> Recognition & Chat
           </div>
 
-          </div>
+
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
           {/* DETECTED STATE — Intent selector */}

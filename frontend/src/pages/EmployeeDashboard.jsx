@@ -497,7 +497,6 @@ export default function EmployeeDashboard() {
                     <Send size={18} />
                   </button>
                 </div>
-              </div>
 
               {/* Quick Replies */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid var(--border-light)', flexShrink: 0 }}>
