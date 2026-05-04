@@ -57,8 +57,6 @@ class Predictor:
         suffix = path.suffix.lower()
 
         if suffix == '.h5':
-            import os
-            os.environ['TF_USE_LEGACY_KERAS'] = '1'
             import tensorflow as tf
             self.model = tf.keras.models.load_model(str(path))
             self.model_type = 'cnn_lstm'

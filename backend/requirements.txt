@@ -10,8 +10,7 @@ python-engineio>=4.9.0
 motor>=3.4.0
 pymongo>=4.7.0
 pydantic>=2.7.0
-tensorflow>=2.16.0
-tf-keras>=2.16.0
+tensorflow==2.15.1
 matplotlib>=3.8.0
 seaborn>=0.13.0
 vosk>=0.3.45
