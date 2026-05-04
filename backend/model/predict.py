@@ -58,7 +58,16 @@ class Predictor:
 
         if suffix == '.h5':
             import tensorflow as tf
-            self.model = tf.keras.models.load_model(str(path))
+            
+            # Keras 3 .h5 deserialization bug patch
+            class CustomBN(tf.keras.layers.BatchNormalization):
+                def __init__(self, **kwargs):
+                    kwargs.pop('renorm', None)
+                    kwargs.pop('renorm_clipping', None)
+                    kwargs.pop('renorm_momentum', None)
+                    super().__init__(**kwargs)
+
+            self.model = tf.keras.models.load_model(str(path), custom_objects={'BatchNormalization': CustomBN})
             self.model_type = 'cnn_lstm'
             print(f"[Predictor] Loaded CNN-LSTM model from {path}")
 
