@@ -24,6 +24,9 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 import tempfile
 import os
+import base64
+import cv2
+import numpy as np
 
 import socketio
 from fastapi import FastAPI, UploadFile, File
@@ -37,6 +40,10 @@ from nlp.mapper import IntentMapper
 from model.predict import Predictor
 from tokenizer.tokenize import SignTokenizer
 from db.connection import connect as db_connect, save_session, close as db_close
+from detection.presence import PresenceDetector
+from detection.landmarks import HandLandmarkExtractor
+from preprocessing.normalize import normalize_sequence
+from preprocessing.sequence import standardize_sequence
 
 # ─── Logging ─────────────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO,
@@ -51,6 +58,11 @@ session_mgr = SessionManager()
 intent_mapper = IntentMapper()
 sign_tokenizer = SignTokenizer()
 predictor = Predictor()
+
+presence_detector = PresenceDetector()
+landmark_extractor = HandLandmarkExtractor(static_mode=False)
+frame_buffers = {}       # sid -> list of landmarks
+detection_states = {}    # sid -> 'idle', 'waiting_approval', 'scanning', 'paused'
 
 # Load Whisper model globally (can be slow, loads on startup)
 whisper_model = None
@@ -152,6 +164,83 @@ async def on_employee_reply(sid, data):
                    room=evt.ROOM_KIOSK)
 
 
+@sio.on('video_frame')
+async def on_video_frame(sid, data):
+    """Process incoming frame from Kiosk."""
+    if 'image' not in data: return
+    try:
+        image_data = data['image'].split(',')[1] if ',' in data['image'] else data['image']
+        nparr = np.frombuffer(base64.b64decode(image_data), np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        state = detection_states.get(sid, 'idle')
+        session_id = None
+        for s_id, sess in session_mgr.active_sessions.items():
+            if sess.status in ['active', 'accepted']:
+                session_id = s_id
+                break
+        
+        if state == 'idle' or session_id is None:
+            in_zone, _ = presence_detector.detect(frame)
+            if in_zone:
+                sess = session_mgr.create_session()
+                detection_states[sid] = 'waiting_approval'
+                frame_buffers[sid] = []
+                await sio.emit(evt.USER_DETECTED, evt.user_detected_payload(sess.session_id), room=evt.ROOM_KIOSK)
+                await sio.emit(evt.SESSION_REQUEST, {'session_id': sess.session_id}, room=evt.ROOM_EMPLOYEE)
+        
+        elif state == 'scanning':
+            features = landmark_extractor.extract(frame)
+            if features is not None:
+                if sid not in frame_buffers: frame_buffers[sid] = []
+                frame_buffers[sid].append(features)
+                
+    except Exception as e:
+        logger.warning(f"Error processing video frame: {e}")
+
+@sio.on('stop_signing')
+async def on_stop_signing(sid, data=None):
+    """User finished signing, run prediction pipeline."""
+    session_id = data.get('session_id') if data else None
+    buffer = frame_buffers.get(sid, [])
+    logger.info(f"Stop signing. Buffer: {len(buffer)} frames.")
+    
+    if len(buffer) < 15:
+        await sio.emit('prediction_error', {'error': 'Not enough frames. Please sign more slowly.'}, room=sid)
+        return
+        
+    raw = buffer[-90:] if len(buffer) > 90 else buffer[:]
+    
+    seq_np = np.array(raw, dtype=np.float32)
+    normalized = normalize_sequence(seq_np)
+    standardized = standardize_sequence(normalized, target=30)
+    
+    result = predictor.predict(standardized)
+    word = result.get('word', 'unknown')
+    confidence = result.get('confidence', 0.0)
+    
+    # NLP Formatting
+    tpl_dict = intent_mapper.templates.get(word, {})
+    sentence = tpl_dict.get('sentence', f"(Sign: {word})") if isinstance(tpl_dict, dict) else str(tpl_dict)
+    intent = tpl_dict.get('intent', 'unknown') if isinstance(tpl_dict, dict) else 'unknown'
+    category = tpl_dict.get('category', 'general') if isinstance(tpl_dict, dict) else 'general'
+    
+    payload = {
+        'word': word,
+        'sentence': sentence,
+        'intent': intent,
+        'category': category,
+        'confidence': round(confidence, 4),
+        'top3': result.get('top3', []),
+        'intent_options': [{'label': sentence, 'sentence': sentence}],
+        'session_id': session_id
+    }
+    
+    await sio.emit('sign_detected', payload, room=sid)
+    await sio.emit('intent_options_ready', payload, room=sid)
+    detection_states[sid] = 'paused'
+    frame_buffers[sid] = []
+
 @sio.on(evt.SESSION_ACCEPTED)
 async def on_session_accepted(sid, data=None):
     """Employee accepted the session."""
@@ -159,6 +248,10 @@ async def on_session_accepted(sid, data=None):
     session = session_mgr.get_session(session_id) if session_id else None
     if session:
         session.accept(sid)
+        # Update kiosk state so frames start getting extracted
+        for k in detection_states.keys():
+            if detection_states[k] == 'waiting_approval':
+                detection_states[k] = 'scanning'
     await sio.emit(evt.SESSION_STATUS, {'status': 'accepted'},
                    room=evt.ROOM_KIOSK)
 
@@ -170,6 +263,9 @@ async def on_session_declined(sid, data=None):
     session = session_mgr.get_session(session_id) if session_id else None
     if session:
         session.decline()
+    # Reset state
+    for k in detection_states.keys():
+        detection_states[k] = 'idle'
     await sio.emit(evt.SESSION_STATUS, {'status': 'declined'},
                    room=evt.ROOM_KIOSK)
 
@@ -182,7 +278,11 @@ async def on_session_ended(sid, data=None):
         doc = session_mgr.end_session(session_id)
         if doc:
             await save_session(doc)
-
+    
+    # Clean up states
+    if sid in detection_states: detection_states[sid] = 'idle'
+    if sid in frame_buffers: frame_buffers[sid] = []
+    
     await sio.emit(evt.SESSION_STATUS, {'status': 'ended'},
                    room=evt.ROOM_KIOSK)
     await sio.emit(evt.SESSION_STATUS, {'status': 'ended'},
