@@ -282,12 +282,19 @@ async def on_session_accepted(sid, data=None):
     session = session_mgr.get_session(session_id) if session_id else None
     if session:
         session.accept(sid)
-        # Update kiosk state so frames start getting extracted
-        for k in detection_states.keys():
-            if detection_states[k] == 'waiting_approval':
-                detection_states[k] = 'scanning'
-    await sio.emit(evt.SESSION_STATUS, {'status': 'accepted'},
-                   room=evt.ROOM_KIOSK)
+
+    accepted_payload = {'status': 'accepted', 'session_id': session_id}
+
+    # Emit directly to every kiosk SID that is waiting approval
+    for k_sid, k_state in list(detection_states.items()):
+        if k_state == 'waiting_approval':
+            detection_states[k_sid] = 'scanning'
+            logger.info(f"Sending session_status:accepted directly to kiosk sid {k_sid}")
+            await sio.emit(evt.SESSION_STATUS, accepted_payload, room=k_sid)
+
+    # Also broadcast to room and globally as fallback
+    await sio.emit(evt.SESSION_STATUS, accepted_payload, room=evt.ROOM_KIOSK)
+    await sio.emit(evt.SESSION_STATUS, accepted_payload)
 
 
 @sio.on(evt.SESSION_DECLINED)
@@ -297,11 +304,12 @@ async def on_session_declined(sid, data=None):
     session = session_mgr.get_session(session_id) if session_id else None
     if session:
         session.decline()
-    # Reset state
-    for k in detection_states.keys():
+    # Reset all kiosk detection states
+    for k in list(detection_states.keys()):
         detection_states[k] = 'idle'
-    await sio.emit(evt.SESSION_STATUS, {'status': 'declined'},
-                   room=evt.ROOM_KIOSK)
+    declined_payload = {'status': 'declined', 'session_id': session_id}
+    await sio.emit(evt.SESSION_STATUS, declined_payload, room=evt.ROOM_KIOSK)
+    await sio.emit(evt.SESSION_STATUS, declined_payload)
 
 
 @sio.on(evt.SESSION_ENDED)
@@ -312,15 +320,16 @@ async def on_session_ended(sid, data=None):
         doc = session_mgr.end_session(session_id)
         if doc:
             await save_session(doc)
-    
-    # Clean up states
-    if sid in detection_states: detection_states[sid] = 'idle'
-    if sid in frame_buffers: frame_buffers[sid] = []
-    
-    await sio.emit(evt.SESSION_STATUS, {'status': 'ended'},
-                   room=evt.ROOM_KIOSK)
-    await sio.emit(evt.SESSION_STATUS, {'status': 'ended'},
-                   room=evt.ROOM_EMPLOYEE)
+
+    # Clean up ALL detection states (session could have been for any kiosk sid)
+    for k in list(detection_states.keys()):
+        detection_states[k] = 'idle'
+    frame_buffers.clear()
+
+    ended_payload = {'status': 'ended', 'session_id': session_id}
+    await sio.emit(evt.SESSION_STATUS, ended_payload, room=evt.ROOM_KIOSK)
+    await sio.emit(evt.SESSION_STATUS, ended_payload, room=evt.ROOM_EMPLOYEE)
+    await sio.emit(evt.SESSION_STATUS, ended_payload)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
