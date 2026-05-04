@@ -292,12 +292,15 @@ export default function KioskDashboard() {
             overflow: 'hidden',
             display: 'flex', flexDirection: 'column', alignItems: 'center',
           }}>
-            {/* Image section */}
-            <div style={{ width: '100%', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '36px 0 28px' }}>
-              <img
-                src="/src/assets/hero.png"
-                alt="Waiting illustration"
-                style={{ width: 160, height: 160, objectFit: 'contain', borderRadius: 12 }}
+            {/* Video section */}
+            <div style={{ width: '100%', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0', overflow: 'hidden', borderRadius: '12px 12px 0 0', height: 240 }}>
+              <video
+                src="/MAN.mp4"
+                autoPlay
+                loop
+                muted
+                playsInline
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               />
             </div>
 
@@ -401,11 +404,16 @@ export default function KioskDashboard() {
       {employeeMessage && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
           <div className="animate-enter" style={{ width: '90vw', maxWidth: 720, background: 'var(--bg-surface)', borderRadius: 24, overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', border: '1px solid var(--border-light)' }}>
-            <div style={{ height: 280, position: 'relative' }}>
-              <Suspense fallback={<div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0B1120' }}><Loader2 size={32} className="spin-icon" style={{ color: '#60A5FA' }} /></div>}>
-                <AvatarScene gesture={getGestureForText(employeeMessage)} isActive={true} />
-              </Suspense>
-              <div style={{ position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', padding: '8px 20px', borderRadius: 30, color: '#60A5FA', fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>
+            <div style={{ height: 280, position: 'relative', overflow: 'hidden', borderRadius: '24px 24px 0 0' }}>
+              <video
+                src="/MAN.mp4"
+                autoPlay
+                loop
+                muted
+                playsInline
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
+              <div style={{ position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', padding: '8px 20px', borderRadius: 30, color: '#ffffff', fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>
                 <MessageSquare size={14} /> Bank Representative
               </div>
             </div>
