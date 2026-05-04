@@ -697,10 +697,16 @@ async def join_kiosk(sid, data=None):
     await sio.enter_room(sid, 'kiosk')
     state.kiosk_sids.add(sid)
     logger.info(f"Kiosk joined: {sid}")
+    # Fully reset session state so stuck sessions don't block new ones
     state.detection_state = 'idle'
     state.frame_buffer = []
     state.user_in_zone = False
     state.last_zone_time = 0.0
+    state.current_session_id = None
+    state.session_accepted_by_employee = False
+    state.assigned_employee_sid = None
+    state.detected_words = []
+    state.session_messages = []
     await sio.emit('status', {'message': 'Connected to kiosk', 'camera': state.camera_running}, room=sid)
 
 
