@@ -311,7 +311,7 @@ export default function KioskDashboard() {
             {/* Video section */}
             <div style={{ width: '100%', background: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0', overflow: 'hidden', borderRadius: '12px 12px 0 0', height: 240 }}>
               <img
-                src="https://github.com/user-attachments/assets/738e2c3e-66d1-430d-a9d1-839b796b6a85"
+                src="/waiting.gif"
                 alt="Waiting for representative"
                 style={{ width: '100%', height: '100%', objectFit: 'cover', backgroundColor: '#000000', display: 'block' }}
               />
@@ -419,7 +419,7 @@ export default function KioskDashboard() {
           <div className="animate-enter" style={{ width: '90vw', maxWidth: 720, background: 'var(--bg-surface)', borderRadius: 24, overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', border: '1px solid var(--border-light)' }}>
             <div style={{ height: 280, position: 'relative', overflow: 'hidden', borderRadius: '24px 24px 0 0', background: '#ffffff' }}>
               <img
-                src="https://github.com/user-attachments/assets/738e2c3e-66d1-430d-a9d1-839b796b6a85"
+                src="/waiting.gif"
                 alt="Bank Representative"
                 style={{ width: '100%', height: '100%', objectFit: 'cover', backgroundColor: '#000000', display: 'block' }}
               />
