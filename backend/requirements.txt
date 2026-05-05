@@ -10,8 +10,16 @@ python-engineio>=4.9.0
 motor>=3.4.0
 pymongo>=4.7.0
 pydantic>=2.7.0
+<<<<<<< HEAD
+tensorflow>=2.16.0
+matplotlib>=3.8.0
+seaborn>=0.13.0
+vosk>=0.3.45
+pyaudio>=0.2.14
+=======
 torch
 matplotlib>=3.8.0
 seaborn>=0.13.0
 vosk>=0.3.45
 
+>>>>>>> b248671619e3ac8e2674de7a4d904ad50db29cc4

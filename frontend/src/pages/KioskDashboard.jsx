@@ -46,7 +46,6 @@ export default function KioskDashboard() {
         .catch(err => console.error("Failed to load classes:", err));
     }
   }, [API_BASE]);
-
   // Camera init
   useEffect(() => {
     async function setupCamera() {

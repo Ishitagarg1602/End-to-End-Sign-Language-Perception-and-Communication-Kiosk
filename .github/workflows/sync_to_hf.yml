@@ -17,4 +17,8 @@ jobs:
       - name: Push to hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: git push https://Ishitagrg:$HF_TOKEN@huggingface.co/spaces/Ishitagrg/sign-language-kiosk-backend main
+        run: |
+          git remote add hf https://Ishitagrg:$HF_TOKEN@huggingface.co/spaces/Ishitagrg/sign-language-kiosk-backend
+          git lfs push --all hf main
+          git push --force hf main
+
