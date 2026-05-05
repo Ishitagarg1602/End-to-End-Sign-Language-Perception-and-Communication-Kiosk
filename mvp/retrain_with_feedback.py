@@ -96,6 +96,12 @@ def preprocess_sequence(raw_frames):
     if n_frames == TARGET_FRAMES:
         return arr.astype(np.float32)
 
+    if n_frames == 1:
+        return np.repeat(arr, TARGET_FRAMES, axis=0)
+    elif n_frames == 2:
+        # just repeat the first frame for half, second for half
+        return np.repeat(arr, TARGET_FRAMES // 2 + 1, axis=0)[:TARGET_FRAMES]
+
     x_old = np.linspace(0, 1, n_frames)
     x_new = np.linspace(0, 1, TARGET_FRAMES)
     interpolated = np.zeros((TARGET_FRAMES, arr.shape[1]), dtype=np.float32)
@@ -135,8 +141,8 @@ def load_feedback_data(classes):
                     print(f"  [SKIP] Bad shape {raw.shape}: {npy_file.name}")
                     skipped += 1
                     continue
-                if raw.shape[0] < 3:
-                    print(f"  [SKIP] Too few frames ({raw.shape[0]}): {npy_file.name}")
+                if raw.shape[0] < 1:
+                    print(f"  [SKIP] Empty data: {npy_file.name}")
                     skipped += 1
                     continue
 

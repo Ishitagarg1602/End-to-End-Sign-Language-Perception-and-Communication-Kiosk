@@ -569,28 +569,7 @@ export default function KioskDashboard() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
           {/* DETECTED STATE — Intent selector */}
-          {latestSign && showFeedbackUI && (
-            <div className="animate-enter" style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-light)', flexShrink: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>What were you actually trying to sign?</div>
-              <input type="text" placeholder="Search correct word..." value={feedbackSearch} onChange={e => setFeedbackSearch(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #d0d0d0', fontSize: 13, background: '#efefef', outline: 'none', fontFamily: 'var(--font-sans)', color: '#111111', marginBottom: 12 }} />
-              
-              <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12 }}>
-                {allClasses.filter(c => c.toLowerCase().includes(feedbackSearch.toLowerCase())).map(c => (
-                  <button key={c} onClick={() => {
-                    sendFeedback(c, latestSign.word);
-                    setShowFeedbackUI(false);
-                    retrySign(); // Resume detection
-                  }} style={{ padding: '10px 12px', textAlign: 'left', background: 'var(--bg-surface)', border: '1px solid var(--border-light)', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                    {c}
-                  </button>
-                ))}
-                {allClasses.length === 0 && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Loading classes...</div>}
-              </div>
-              <button onClick={() => setShowFeedbackUI(false)} style={{ width: '100%', padding: 10, fontSize: 13, background: 'transparent', border: '1px solid var(--border-light)', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
-            </div>
-          )}
-
-          {latestSign && !showFeedbackUI && (
+          {latestSign && (
             <div className="animate-enter" style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-light)', flexShrink: 0 }}>
               {/* Word + Confidence */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
@@ -645,9 +624,6 @@ export default function KioskDashboard() {
                     <RotateCcw size={14} /> Retry
                   </button>
                 </div>
-                <button className="btn" onClick={() => setShowFeedbackUI(true)} style={{ padding: '8px', fontSize: 12, background: 'rgba(220,38,38,0.05)', color: 'var(--danger)', border: '1px dashed rgba(220,38,38,0.4)', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
-                  <AlertTriangle size={12} style={{ display: 'inline', marginRight: 4 }} /> Wrong Prediction? Send Feedback
-                </button>
               </div>
             </div>
           )}

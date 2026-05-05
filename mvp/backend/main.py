@@ -1516,49 +1516,8 @@ def online_finetune(raw_frames, class_label, steps=10, lr=1e-3):
 
 @sio.event
 async def label_feedback(sid, data):
-    correct_word = data.get('correct_word', '').strip()
-    wrong_word = data.get('wrong_word', '')
-    if not correct_word:
-        return
-
-    logger.info(f"Label feedback: model said '{wrong_word}', user says '{correct_word}'")
-    learned = False
-
-    if state.last_prediction_buffer:
-        raw_frames = [f.copy() for f in state.last_prediction_buffer]
-        try:
-            word_dir = FEEDBACK_DIR / correct_word
-            word_dir.mkdir(parents=True, exist_ok=True)
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-            filepath = word_dir / f"corrected_{timestamp}.npy"
-            np.save(str(filepath), np.array(raw_frames))
-            logger.info(f"Correction saved: {filepath} ({len(raw_frames)} frames)")
-
-            learned = await asyncio.to_thread(online_finetune, raw_frames, correct_word)
-
-            log_message_to_db(
-                session_id=data.get('session_id', state.current_session_id),
-                direction='correction',
-                word=correct_word,
-                sentence=f"corrected from '{wrong_word}' to '{correct_word}'",
-                intent='label_correction',
-                category='feedback',
-                confidence=0.0,
-                input_mode='correction'
-            )
-        except Exception as e:
-            logger.warning(f"Failed to save/learn correction: {e}")
-        state.last_prediction_buffer = []
-        state.last_predicted_word = None
-    else:
-        logger.warning("No prediction buffer to save for correction")
-
-    state.frame_buffer = []
-    state.detection_state = 'detecting'
-    state.last_zone_time = time.time()
-    msg = f'Learned "{correct_word}" — model updated' if learned else f'Saved "{correct_word}" for training'
-    await sio.emit('label_saved', {'word': correct_word, 'message': msg, 'learned': learned}, room='kiosk')
-    await sio.emit('detection_state', {'state': 'detecting'}, room='kiosk')
+    logger.info("Feedback loop is currently disabled. Ignoring feedback event.")
+    return
 
 
 @sio.event
