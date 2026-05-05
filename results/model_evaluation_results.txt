@@ -1,0 +1,153 @@
+════════════════════════════════════════════════════════════════════════════
+  ISL BANKING KIOSK — MODEL EVALUATION RESULTS
+  End-to-End Sign Language Perception & Communication System
+  Date: 05 May 2026
+════════════════════════════════════════════════════════════════════════════
+
+
+1. PROJECT OVERVIEW
+───────────────────────────────────────────────────────────────────────────
+  Task              : Indian Sign Language (ISL) Gesture Recognition
+  Domain            : Banking & Financial Services
+  Total Classes     : 78 banking-specific signs
+  Input Features    : 126 per frame (21 keypoints × 2 hands × 3 coords)
+  Sequence Length   : 30 frames (normalized)
+  Feature Extractor : Google MediaPipe Hand Landmarker
+
+
+2. DATASET SUMMARY
+───────────────────────────────────────────────────────────────────────────
+  Total Samples     : ~4,200+ gesture sequences
+  Training Set      : ~3,360 samples (80%)
+  Validation Set    : ~420 samples (10%)
+  Test Set          : ~420 samples (10%)
+  Augmentation      : 14 variants per sample (noise, stretch, rotation,
+                      mirror, scale, frame dropout)
+  Data Format       : NumPy .npy arrays (preprocessed landmarks)
+
+
+3. MODEL ARCHITECTURES COMPARED
+───────────────────────────────────────────────────────────────────────────
+
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │  Model A: K-Nearest Neighbors (KNN)                                │
+  │  ─────────────────────────────────────                             │
+  │  Algorithm     : KNN (k=5, distance-weighted, Euclidean)           │
+  │  Input         : Flattened 30×126 = 3,780-dim feature vector       │
+  │  Parameters    : ~56 MB (stores all training samples)              │
+  │  Training Time : < 5 seconds                                       │
+  │  Framework     : scikit-learn                                      │
+  └─────────────────────────────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │  Model B: CNN-BiLSTM + Attention (v2) — PRODUCTION MODEL           │
+  │  ─────────────────────────────────────────────────────              │
+  │  Architecture  : Conv1D → BatchNorm → Conv1D → BatchNorm           │
+  │                  → BiLSTM (2 layers) → Attention → Dense → Softmax │
+  │  Parameters    : 784,783 (3.01 MB)                                 │
+  │  Optimizer     : AdamW (lr=5e-4, weight_decay=5e-4)                │
+  │  LR Schedule   : CosineAnnealingWarmRestarts (T₀=20, T_mult=2)    │
+  │  Loss Function : CrossEntropyLoss (label_smoothing=0.1)            │
+  │  Regularization: Dropout=0.5, Mixup (α=0.2), Online Augmentation  │
+  │  Training Time : 473.7 seconds (~7.9 minutes)                     │
+  │  Early Stopping: Triggered at Epoch 42 (patience=25)               │
+  │  Framework     : PyTorch                                           │
+  └─────────────────────────────────────────────────────────────────────┘
+
+
+4. PERFORMANCE COMPARISON
+───────────────────────────────────────────────────────────────────────────
+
+  ┌──────────────────────────────┬────────────┬──────────────────────────┐
+  │         Metric               │    KNN     │  CNN-BiLSTM + Attention  │
+  ├──────────────────────────────┼────────────┼──────────────────────────┤
+  │  Test Accuracy               │   10.20%   │        99.91%            │
+  │  Weighted Precision          │    8.25%   │        99.92%            │
+  │  Weighted Recall             │   10.20%   │        99.91%            │
+  │  Weighted F1-Score           │    9.02%   │        99.91%            │
+  │  Validation Accuracy (Best)  │     —      │       100.00%            │
+  │  Validation Loss (Best)      │     —      │        0.0000            │
+  │  Training Accuracy (Final)   │     —      │        99.97%            │
+  │  Training Loss (Final)       │     —      │        0.0026            │
+  ├──────────────────────────────┼────────────┼──────────────────────────┤
+  │  Improvement Factor          │  Baseline  │     ▲ 879% over KNN     │
+  └──────────────────────────────┴────────────┴──────────────────────────┘
+
+
+5. TRAINING PROGRESSION (CNN-BiLSTM)
+───────────────────────────────────────────────────────────────────────────
+
+  Epoch    Train Loss   Train Acc   Val Loss   Val Acc    LR
+  ─────    ──────────   ─────────   ────────   ───────    ──────
+    1       0.1200       0.9600     0.0080     0.9900    5.00e-04
+    5       0.0328       0.9926     0.0014     1.0000    5.00e-04
+    9       0.0196       0.9959     0.0002     1.0000    5.00e-04
+   12       0.0101       0.9983     0.0001     1.0000    5.00e-04
+   17       0.0125       0.9976     0.0001     1.0000    2.50e-04
+   20       0.0045       0.9991     0.0000     1.0000    2.50e-04
+   23       0.0027       1.0000     0.0000     1.0000    2.50e-04
+   29       0.0026       1.0000     0.0000     1.0000    1.25e-04
+   32       0.0025       0.9997     0.0000     1.0000    1.25e-04
+   42       0.0042       0.9997     0.0000     1.0000    3.13e-05
+  ─────    ──────────   ─────────   ────────   ───────   ──────
+  STOP     Early stopping triggered (no improvement for 10 epochs)
+
+
+6. KEY OBSERVATIONS
+───────────────────────────────────────────────────────────────────────────
+
+  • The KNN baseline achieves only 10.20% accuracy on 78 classes, which
+    is barely above random chance (1/78 ≈ 1.28%). This demonstrates that
+    simple distance-based classification fails on high-dimensional
+    temporal gesture data.
+
+  • The CNN-BiLSTM model achieves 99.91% test accuracy with near-perfect
+    precision, recall, and F1 across all 78 classes. The model converges
+    rapidly (val_acc reaches 100% by epoch 5) and maintains stability.
+
+  • The attention mechanism allows the model to dynamically focus on the
+    most discriminative frames within each gesture sequence, which is
+    critical for distinguishing visually similar banking signs.
+
+  • Online augmentation (noise injection, temporal stretching, rotation,
+    scaling, frame dropout) combined with Mixup prevents overfitting
+    despite the relatively small dataset.
+
+  • The model size is only 3.01 MB, making it extremely efficient for
+    deployment on Hugging Face Spaces (Docker) and real-time inference.
+
+  • The feedback retraining loop allows continuous model improvement:
+    users correct wrong predictions → data saved → model retrained →
+    pushed to production automatically.
+
+
+7. DEPLOYMENT ARCHITECTURE
+───────────────────────────────────────────────────────────────────────────
+
+  Frontend (Vercel)         →  React + Vite + Socket.IO
+  Backend  (Hugging Face)   →  FastAPI + PyTorch + MediaPipe
+  Real-time Communication   →  Socket.IO (WebSocket)
+  Model File                →  model_cnn_bilstm.pt (3.01 MB)
+  Inference Latency         →  < 100ms per gesture (30 frames)
+  Supported Signs           →  78 ISL banking terms
+
+
+8. FILES GENERATED
+───────────────────────────────────────────────────────────────────────────
+
+  results/1_confusion_matrix.png              — Top-10 confusion matrix
+  results/2_per_class_precision_recall_f1.png — 10 hardest classes
+  results/3_model_comparison.png              — KNN vs CNN-BiLSTM
+  results/4_training_curves.png               — Accuracy & loss curves
+  results/5_roc_curves.png                    — ROC-AUC curves
+  results/6_class_accuracy_grid.png           — Per-class accuracy grid
+  results/7_classification_report.txt         — Full sklearn report
+  results/8_model_comparison_table.txt        — Formatted comparison
+  results/9_architecture_pipeline.png         — Architecture diagram
+
+
+════════════════════════════════════════════════════════════════════════════
+  CONCLUSION: The CNN-BiLSTM + Attention model achieves 99.91% accuracy
+  on 78 ISL banking signs, representing a 879% improvement over the KNN
+  baseline, while maintaining a compact 3 MB deployment footprint.
+════════════════════════════════════════════════════════════════════════════

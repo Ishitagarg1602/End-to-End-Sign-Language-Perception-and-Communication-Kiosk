@@ -1,0 +1,84 @@
+                      precision    recall  f1-score   support
+
+             account       1.00      1.00      1.00        14
+     account_blocked       1.00      1.00      1.00        15
+     account_closing       1.00      1.00      1.00        15
+      account_holder       1.00      1.00      1.00        15
+   account_statement       1.00      1.00      1.00        15
+             address       1.00      1.00      1.00        15
+           affidavit       1.00      1.00      1.00        14
+              amount       1.00      1.00      1.00        14
+     annual_interest       1.00      1.00      1.00        15
+   annualised_return       1.00      1.00      1.00        14
+               apply       1.00      1.00      1.00        15
+                 atm       1.00      1.00      1.00        15
+             balance       1.00      1.00      1.00        14
+                bank       1.00      1.00      1.00        14
+    bank_branch_name       1.00      1.00      1.00        15
+            borrower       1.00      1.00      1.00        15
+              cancel       1.00      1.00      1.00        14
+                cash       1.00      1.00      1.00        14
+              change       1.00      1.00      1.00        15
+              cheque       1.00      1.00      1.00        15
+          cif_number       1.00      1.00      1.00        15
+            complain       1.00      1.00      1.00        15
+         credit_card       1.00      1.00      1.00        15
+credit_score_(cibil)       1.00      1.00      1.00        15
+     current_account       1.00      1.00      1.00        15
+          debit_card       1.00      1.00      1.00        14
+             deposit       1.00      1.00      1.00        15
+            dividend       1.00      1.00      1.00        15
+         expenditure       1.00      1.00      1.00        15
+              finish       1.00      1.00      1.00        15
+       fixed_deposit       1.00      1.00      1.00        14
+                form       1.00      1.00      1.00        15
+               fraud       1.00      1.00      1.00        15
+        good_morning       1.00      1.00      1.00        15
+    government_bonds       1.00      1.00      1.00        14
+               hello       1.00      0.93      0.96        14
+                help       1.00      1.00      1.00        14
+       identity_card       1.00      1.00      1.00        15
+         ifsc_number       1.00      1.00      1.00        15
+              income       1.00      1.00      1.00        15
+           insurance       1.00      1.00      1.00        15
+       interest_rate       1.00      1.00      1.00        17
+       joint_account       1.00      1.00      1.00        15
+                 kyc       1.00      1.00      1.00        15
+                loan       1.00      1.00      1.00        15
+                lose       1.00      1.00      1.00        14
+      mobile_banking       1.00      1.00      1.00        14
+               money       1.00      1.00      1.00        15
+           mortgages       1.00      1.00      1.00        15
+        mutual_funds       1.00      1.00      1.00        17
+                name       1.00      1.00      1.00        15
+                  no       1.00      1.00      1.00        14
+             nominee       1.00      1.00      1.00        14
+              number       1.00      1.00      1.00        15
+                open       1.00      1.00      1.00        15
+     opening_balance       1.00      1.00      1.00        14
+           overdraft       1.00      1.00      1.00        15
+            passbook       1.00      1.00      1.00        14
+             payment       1.00      1.00      1.00        15
+               paytm       1.00      1.00      1.00        15
+        pension_fund       1.00      1.00      1.00        15
+               phone       1.00      1.00      1.00        15
+ provident_fund_(pf)       1.00      1.00      1.00        15
+             receive       1.00      1.00      1.00        15
+   recurring_deposit       1.00      1.00      1.00        15
+             revenue       1.00      1.00      1.00        14
+     savings_account       1.00      1.00      1.00        15
+    security_deposit       1.00      1.00      1.00        15
+                send       1.00      1.00      1.00        17
+           signature       1.00      1.00      1.00        15
+     simple_interest       1.00      1.00      1.00        14
+                 sip       1.00      1.00      1.00        15
+                 tax       1.00      1.00      1.00        15
+           thank_you       1.00      1.00      1.00         8
+            transfer       1.00      1.00      1.00        15
+        verification       1.00      1.00      1.00        15
+                wait       0.94      1.00      0.97        15
+            withdraw       1.00      1.00      1.00        14
+
+            accuracy                           1.00      1147
+           macro avg       1.00      1.00      1.00      1147
+        weighted avg       1.00      1.00      1.00      1147

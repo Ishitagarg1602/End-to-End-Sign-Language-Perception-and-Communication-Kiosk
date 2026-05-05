@@ -1340,8 +1340,8 @@ async def stop_signing(sid, data=None):
         await sio.emit('prediction_error', {'error': 'Model not loaded'}, room='kiosk')
         return
 
-    if len(state.frame_buffer) < 15:
-        await sio.emit('prediction_error', {'error': 'Not enough frames. Please sign more slowly and for longer.'}, room='kiosk')
+    if len(state.frame_buffer) < 3:
+        await sio.emit('prediction_error', {'error': 'Not enough frames detected. Please sign slightly longer.'}, room='kiosk')
         logger.info("Not enough frames for prediction")
         return
 
