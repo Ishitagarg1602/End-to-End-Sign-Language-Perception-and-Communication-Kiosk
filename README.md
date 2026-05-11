@@ -1,3 +1,11 @@
+---
+title: Sign Language Kiosk Backend
+emoji: 🏢
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+---
 <div align="center">
   
 # 🤟 End-to-End Sign Language Perception & Communication Kiosk
